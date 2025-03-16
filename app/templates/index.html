@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>To-Do List</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <h1 class="mt-5">To-Do List</h1>
+        <form action="{{ url_for('add') }}" method="POST" class="form-inline my-3">
+            <input type="text" name="title" class="form-control mr-2" placeholder="New Task">
+            <button type="submit" class="btn btn-primary">Add</button>
+        </form>
+        <ul class="list-group">
+            {% for task in tasks %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span style="text-decoration: {{ 'line-through' if task.completed else 'none' }}">{{ task.title }}</span>
+                    <div>
+                        <a href="{{ url_for('complete', task_id=task.id) }}" class="btn btn-success btn-sm mr-2">Complete</a>
+                        <a href="{{ url_for('delete', task_id=task.id) }}" class="btn btn-danger btn-sm">Delete</a>
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+    <!-- Bootstrap JS and dependencies -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>
