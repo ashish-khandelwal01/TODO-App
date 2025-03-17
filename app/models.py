@@ -1,5 +1,6 @@
 from . import db
 from flask_login import UserMixin
+from sqlalchemy import ForeignKey
 
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
@@ -13,4 +14,4 @@ class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
     completed = db.Column(db.Boolean, default=False)
-    # TODO 1: Add a new column to the Task model called user_id. This column should be a foreign key that references the id column in the User model.
+    user_id = db.Column(db.Integer, ForeignKey('user.id', name='fk_user_id'), nullable=False)
