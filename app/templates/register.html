@@ -53,6 +53,13 @@
                 html: true
             });
 
+            $('#email').tooltip({
+                trigger: 'manual',
+                placement: 'right',
+                template: '<div class="tooltip custom-tooltip" role="tooltip"><div class="arrow"></div><div class="tooltip-inner"></div></div>',
+                html: true
+            });
+
             $('#username').on('blur', function() {
                 var username = $(this).val();
                 $.ajax({
@@ -87,6 +94,18 @@
                 });
             });
         });
+
+        function validateEmail() {
+            var email = document.getElementById("email").value;
+            var emailPattern = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
+            if (!emailPattern.test(email)) {
+                $('#email').attr('data-original-title', 'Invalid email address').tooltip('show');
+                return false;
+            } else {
+                $('#email').tooltip('hide');
+                return true;
+            }
+        }
 
         function validatePassword() {
             var password = document.getElementById("password").value;
@@ -130,7 +149,7 @@
         }
 
         function validateForm(event) {
-            if (!validatePassword()) {
+            if (!validateEmail() || !validatePassword()) {
                 event.preventDefault();
             }
         }
@@ -145,12 +164,24 @@
                 <input type="text" class="form-control" id="username" name="username" required>
             </div>
             <div class="form-group">
+                <label for="email">Email</label>
+                <input type="text" class="form-control" id="email" name="email" onblur="validateEmail()" required>
+            </div>
+            <div class="form-group">
                 <label for="password">Password</label>
                 <input type="password" class="form-control" id="password" name="password" required>
             </div>
             <div class="form-group">
                 <label for="confirm_password">Confirm Password</label>
                 <input type="password" class="form-control" id="confirm_password" name="confirm_password" onkeyup="validatePassword()" required>
+            </div>
+            <div class="form-group">
+                <label for="security_question">Security Question</label>
+                <input type="text" class="form-control" id="security_question" name="security_question" required>
+            </div>
+            <div class="form-group">
+                <label for="security_answer">Security Answer</label>
+                <input type="text" class="form-control" id="security_answer" name="security_answer" required>
             </div>
             <button type="submit" class="btn btn-primary">Register</button>
             <a href="{{ url_for('login') }}" class="btn btn-secondary">Already have an account</a>
