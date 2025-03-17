@@ -13,3 +13,4 @@ class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
     completed = db.Column(db.Boolean, default=False)
+    # TODO 1: Add a new column to the Task model called user_id. This column should be a foreign key that references the id column in the User model.
