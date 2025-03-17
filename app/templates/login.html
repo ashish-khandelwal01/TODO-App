@@ -19,6 +19,11 @@
                 <label for="password">Password</label>
                 <input type="password" class="form-control" id="password" name="password" required>
             </div>
+            {% if error_message %}
+                <div class="alert alert-danger" role="alert">
+                    {{ error_message }}
+                </div>
+            {% endif %}
             <div>
                 <a href="{{ url_for('forgot_password') }}" class="btn btn-link">Forgot Password?</a>
             </div>

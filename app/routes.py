@@ -8,6 +8,7 @@ from app.models import User, Task
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    error_message = None  # Initialize error_message
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
@@ -16,8 +17,8 @@ def login():
             login_user(user)
             return redirect(url_for('index'))
         else:
-            flash('Login Unsuccessful. Please check username and password', 'danger')
-    return render_template('login.html')
+            error_message = 'Login Unsuccessful. Please check username and password'
+    return render_template('login.html', error_message=error_message)
 
 @app.route('/logout')
 @login_required
@@ -56,14 +57,15 @@ def register():
 @app.route('/')
 @login_required
 def index():
-    tasks = Task.query.all()
+    tasks = Task.query.filter_by(user_id=current_user.id).all()
     return render_template('index.html', tasks=tasks)
 
 @app.route('/add', methods=['POST'])
+@login_required
 def add():
     title = request.form.get('title')
     if title:
-        new_task = Task(title=title)
+        new_task = Task(title=title, user_id=current_user.id)
         db.session.add(new_task)
         db.session.commit()
     return redirect(url_for('index'))
