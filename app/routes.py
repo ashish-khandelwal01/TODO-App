@@ -190,3 +190,7 @@ def add_suggested(task_title):
     db.session.add(new_task)
     db.session.commit()
     return redirect(url_for('main.index'))
+
+
+# TODO Remove all flash and make it as a ajax response for the UI
+# TODO Fix the priority defect
