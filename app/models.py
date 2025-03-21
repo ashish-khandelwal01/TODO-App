@@ -10,8 +10,13 @@ class User(db.Model, UserMixin):
     security_question = db.Column(db.String(150), nullable=False)
     security_answer = db.Column(db.String(150), nullable=False)
 
+
 class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
     completed = db.Column(db.Boolean, default=False)
-    user_id = db.Column(db.Integer, ForeignKey('user.id', name='fk_user_id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    priority = db.Column(db.Integer, default=1)  # Add this line
+
+    def __repr__(self):
+        return f'<Task {self.title}>'
