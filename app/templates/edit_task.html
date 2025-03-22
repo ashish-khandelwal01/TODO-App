@@ -20,7 +20,7 @@
             </div>
         </nav>
         <h1 class="mt-5">Edit Task</h1>
-        <form action="{{ url_for('edit', task_id=task.id) }}" method="POST" class="form-inline my-3">
+        <form action="{{ url_for('main.edit', task_id=task.id) }}" method="POST" class="form-inline my-3">
             <input type="text" name="title" class="form-control mr-2" value="{{ task.title }}" placeholder="Task Title">
             <button type="submit" class="btn btn-primary">Save</button>
         </form>
