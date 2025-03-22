@@ -38,16 +38,6 @@ def register():
         confirm_password = request.form.get('confirm_password')
         security_question = request.form.get('security_question')
         security_answer = request.form.get('security_answer')
-
-        email_regex = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
-        if not re.match(email_regex, email):
-            flash('Invalid email address', 'danger')
-            return redirect(url_for('main.register'))
-
-        if password != confirm_password:
-            flash('Passwords do not match', 'danger')
-            return redirect(url_for('main.register'))
-
         hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
         new_user = User(username=username, email=email, password=hashed_password, security_question=security_question,
                         security_answer=security_answer)
@@ -160,17 +150,13 @@ def reset_password():
     if request.method == 'POST':
         new_password = request.form.get('new_password')
         confirm_password = request.form.get('confirm_password')
-        if new_password != confirm_password:
-            flash('Passwords do not match', 'danger')
-            return redirect(url_for('main.reset_password'))
         username = session.get('username')
         user = User.query.filter_by(username=username).first()
         if user:
             hashed_password = generate_password_hash(new_password, method='pbkdf2:sha256')
             user.password = hashed_password
             db.session.commit()
-            flash('Your password has been reset successfully.', 'success')
-            return redirect(url_for('main.login'))
+            return jsonify({'message': 'Your password has been reset successfully.', 'status': 'success'})
     return render_template('reset_password.html')
 
 @main.route('/edit/<int:task_id>', methods=['GET', 'POST'])
