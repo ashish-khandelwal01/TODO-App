@@ -71,10 +71,16 @@
         .task-item .task-actions a {
             margin-left: 5px;
         }
+        .sidebar {
+            background-color: #fff;
+            padding: 20px;
+            border-right: 1px solid #ddd;
+            height: 100vh;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="container-fluid">
         <nav class="navbar navbar-expand-lg navbar-dark">
             <a class="navbar-brand" href="#">To-Do List</a>
             <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -88,68 +94,79 @@
                 </ul>
             </div>
         </nav>
-        <form action="{{ url_for('main.add') }}" method="POST" class="form-inline my-3">
-            <input type="text" name="title" class="form-control mr-2" placeholder="New Task">
-            <select name="priority" class="form-control mr-2">
-                <option value="1" class="priority-low">Low</option>
-                <option value="2" class="priority-medium">Medium</option>
-                <option value="3" class="priority-high">High</option>
-            </select>
-            <button type="submit" class="btn btn-primary">Add</button>
-        </form>
-        <div class="mb-3">
-            <form method="GET" action="{{ url_for('main.index') }}" class="form-inline">
-                <label for="sort_by" class="mr-2">Sort by:</label>
-                <select name="sort_by" id="sort_by" class="form-control mr-2">
-                    <option value="priority" {% if sort_by == 'priority' %}selected{% endif %}>Priority</option>
-                    <option value="title" {% if sort_by == 'title' %}selected{% endif %}>Title</option>
-                </select>
-                <label for="filter_by" class="mr-2">Filter by priority:</label>
-                <select name="filter_by" id="filter_by" class="form-control mr-2">
-                    <option value="" {% if not filter_by %}selected{% endif %}>All</option>
-                    <option value="1" {% if filter_by == '1' %}selected{% endif %}>Low</option>
-                    <option value="2" {% if filter_by == '2' %}selected{% endif %}>Medium</option>
-                    <option value="3" {% if filter_by == '3' %}selected{% endif %}>High</option>
-                </select>
-                <button type="submit" class="btn btn-primary">Apply</button>
-            </form>
-        </div>
-        <div class="task-list">
-            {% for task in tasks %}
-                <div class="task-item {% if task.completed %}completed{% endif %}">
-                    <span class="task-title">{{ task.title }}</span>
-                    <div class="task-actions">
-                        <span class="priority-label {% if task.priority == 1 %}priority-low{% elif task.priority == 2 %}priority-medium{% else %}priority-high{% endif %}">
-                            {% if task.priority == 1 %}Low{% elif task.priority == 2 %}Medium{% else %}High{% endif %}
-                        </span>
-                        <a href="{{ url_for('main.complete', task_id=task.id) }}" class="btn btn-success btn-sm">
-                            <i class="fas fa-check"></i>
-                        </a>
-                        <a href="{{ url_for('main.edit', task_id=task.id) }}" class="btn btn-warning btn-sm">
-                            <i class="fas fa-edit"></i>
-                        </a>
-                        <a href="{{ url_for('main.delete', task_id=task.id) }}" class="btn btn-danger btn-sm">
-                            <i class="fas fa-trash"></i>
-                        </a>
-                    </div>
-                </div>
-            {% endfor %}
-        </div>
 
-        <div class="suggested-tasks">
-            <h2>Suggested Tasks</h2>
-            <ul class="list-group">
-                {% for suggested_task in suggested_tasks %}
-                    {% if suggested_task not in tasks|map(attribute='title') %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            {{ suggested_task }}
-                            <a href="{{ url_for('main.add_suggested', task_title=suggested_task) }}" class="btn btn-primary btn-sm">
-                                <i class="fas fa-plus"></i>
-                            </a>
-                        </li>
-                    {% endif %}
-                {% endfor %}
-            </ul>
+        <div class="row">
+            <div class="col-md-2 sidebar">
+                <form method="GET" action="{{ url_for('main.index') }}" class="form">
+                    <div class="form-group">
+                        <label for="sort_by">Sort by:</label>
+                        <select name="sort_by" id="sort_by" class="form-control">
+                            <option value="priority" {% if sort_by == 'priority' %}selected{% endif %}>Priority</option>
+                            <option value="title" {% if sort_by == 'title' %}selected{% endif %}>Title</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="filter_by">Filter by priority:</label>
+                        <select name="filter_by" id="filter_by" class="form-control">
+                            <option value="" {% if not filter_by %}selected{% endif %}>All</option>
+                            <option value="1" {% if filter_by == '1' %}selected{% endif %}>Low</option>
+                            <option value="2" {% if filter_by == '2' %}selected{% endif %}>Medium</option>
+                            <option value="3" {% if filter_by == '3' %}selected{% endif %}>High</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Apply</button>
+                </form>
+            </div>
+
+            <div class="col-md-10">
+                <form action="{{ url_for('main.add') }}" method="POST" class="form-inline my-3">
+                    <input type="text" name="title" class="form-control mr-2" placeholder="New Task">
+                    <select name="priority" class="form-control mr-2">
+                        <option value="1" class="priority-low">Low</option>
+                        <option value="2" class="priority-medium">Medium</option>
+                        <option value="3" class="priority-high">High</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary">Add</button>
+                </form>
+
+                <div class="task-list">
+                    {% for task in tasks %}
+                        <div class="task-item {% if task.completed %}completed{% endif %}">
+                            <span class="task-title">{{ task.title }}</span>
+                            <div class="task-actions">
+                                <span class="priority-label {% if task.priority == 1 %}priority-low{% elif task.priority == 2 %}priority-medium{% else %}priority-high{% endif %}">
+                                    {% if task.priority == 1 %}Low{% elif task.priority == 2 %}Medium{% else %}High{% endif %}
+                                </span>
+                                <a href="{{ url_for('main.complete', task_id=task.id) }}" class="btn btn-success btn-sm">
+                                    <i class="fas fa-check"></i>
+                                </a>
+                                <a href="{{ url_for('main.edit', task_id=task.id) }}" class="btn btn-warning btn-sm">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{{ url_for('main.delete', task_id=task.id) }}" class="btn btn-danger btn-sm">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="suggested-tasks">
+                    <h2>Suggested Tasks</h2>
+                    <ul class="list-group">
+                        {% for suggested_task in suggested_tasks %}
+                            {% if suggested_task not in tasks|map(attribute='title') %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    {{ suggested_task }}
+                                    <a href="{{ url_for('main.add_suggested', task_title=suggested_task) }}" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-plus"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
         </div>
     </div>
     <!-- Bootstrap JS and dependencies -->

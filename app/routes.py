@@ -1,11 +1,11 @@
 # app/routes.py
 
-from flask import Blueprint, render_template, redirect, url_for, request, flash, session, jsonify
+from flask import Blueprint, render_template, redirect, url_for, request, session, jsonify
 from flask_login import login_user, login_required, logout_user, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
+
 from app import db
 from app.models import User, Task
-import re
 
 main = Blueprint('main', __name__)
 
@@ -52,19 +52,13 @@ def index():
     sort_by = request.args.get('sort_by', 'priority')
     filter_by = request.args.get('filter_by', '')
 
-    priority_order = {
-        'High': 3,
-        'Medium': 2,
-        'Low': 1
-    }
-
     if filter_by:
         tasks = Task.query.filter_by(user_id=current_user.id, priority=filter_by).all()
     else:
         tasks = Task.query.filter_by(user_id=current_user.id).all()
 
     if sort_by == 'priority':
-        tasks.sort(key=lambda task: priority_order.get(task.priority, 0), reverse=True)
+        tasks.sort(key=lambda task: task.priority, reverse=True)
     else:
         tasks.sort(key=lambda task: getattr(task, sort_by))
 
@@ -129,7 +123,7 @@ def forgot_password():
             session['security_question'] = user.security_question
             return redirect(url_for('main.security_answer'))
         else:
-            flash('Username not found.', 'danger')
+            return jsonify({'message': 'Username not found.', 'status': 'danger'})
     return render_template('forgot_password.html')
 
 @main.route('/security_answer', methods=['GET', 'POST'])
@@ -140,10 +134,11 @@ def security_answer():
         security_answer = request.form.get('security_answer')
         user = User.query.filter_by(username=username).first()
         if user and user.security_answer == security_answer:
-            return redirect(url_for('main.reset_password'))
+            return jsonify({'status': 'success', 'redirect_url': url_for('main.reset_password')})
         else:
-            flash('Incorrect security answer.', 'danger')
+            return jsonify({'status': 'danger', 'message': 'Incorrect security answer.'})
     return render_template('security_answer.html', security_question=security_question)
+
 
 @main.route('/reset_password', methods=['GET', 'POST'])
 def reset_password():
@@ -176,7 +171,3 @@ def add_suggested(task_title):
     db.session.add(new_task)
     db.session.commit()
     return redirect(url_for('main.index'))
-
-
-# TODO Remove all flash and make it as a ajax response for the UI
-# TODO Fix the priority defect
