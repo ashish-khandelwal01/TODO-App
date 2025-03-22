@@ -55,7 +55,7 @@
 
             $('#email').tooltip({
                 trigger: 'manual',
-                placement: 'right',
+                placement: 'left',
                 template: '<div class="tooltip custom-tooltip" role="tooltip"><div class="arrow"></div><div class="tooltip-inner"></div></div>',
                 html: true
             });
@@ -160,7 +160,7 @@
 <body>
     <div class="container">
         <h2 class="mt-5">Register</h2>
-        <form method="POST" action="{{ url_for('register') }}" onsubmit="validateForm(event)">
+        <form method="POST" action="{{ url_for('main.register') }}" onsubmit="validateForm(event)">
             <div class="form-group">
                 <label for="username">Username</label>
                 <input type="text" class="form-control" id="username" name="username" required>
@@ -186,7 +186,7 @@
                 <input type="text" class="form-control" id="security_answer" name="security_answer" required>
             </div>
             <button type="submit" class="btn btn-primary">Register</button>
-            <a href="{{ url_for('login') }}" class="btn btn-secondary">Already have an account</a>
+            <a href="{{ url_for('main.login') }}" class="btn btn-secondary">Already have an account</a>
         </form>
     </div>
 </body>
