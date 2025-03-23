@@ -18,6 +18,7 @@ def login():
         user = User.query.filter_by(username=username).first()
         if user and check_password_hash(user.password, password):
             login_user(user)
+            session.permanent = True
             return redirect(url_for('main.index'))
         else:
             error_message = 'Login Unsuccessful. Please check username and password'
