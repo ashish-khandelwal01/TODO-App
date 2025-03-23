@@ -1,4 +1,5 @@
-# app/__init__.py
+from datetime import timedelta
+
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
@@ -18,6 +19,7 @@ def create_app(config_class=None):
     else:
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///todo.db'
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
         app.config['SECRET_KEY'] = 'your_secret_key'
 
     db.init_app(app)
