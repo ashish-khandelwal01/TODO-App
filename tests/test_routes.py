@@ -6,7 +6,6 @@ from app import db
 from app.models import User, Task
 from .test_config import create_test_app
 from urllib.parse import urlparse
-from werkzeug.security import generate_password_hash
 from flask_wtf.csrf import CSRFProtect
 import bcrypt
 
