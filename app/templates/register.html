@@ -161,6 +161,7 @@
     <div class="container">
         <h2 class="mt-5">Register</h2>
         <form method="POST" action="{{ url_for('main.register') }}" onsubmit="validateForm(event)">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label for="username">Username</label>
                 <input type="text" class="form-control" id="username" name="username" required>

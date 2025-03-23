@@ -13,6 +13,7 @@
     <div class="container">
         <h2 class="mt-5">Security Answer</h2>
         <form id="security-answer-form" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label for="security_question">Security Question</label>
                 <input type="text" class="form-control" id="security_question" name="security_question" value="{{ security_question }}" readonly>

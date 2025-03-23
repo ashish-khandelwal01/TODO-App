@@ -1,9 +1,10 @@
 from datetime import timedelta
-
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
+from flask_wtf import CSRFProtect
 
+csrf = CSRFProtect()
 db = SQLAlchemy()
 login_manager = LoginManager()
 
@@ -25,6 +26,7 @@ def create_app(config_class=None):
     db.init_app(app)
     login_manager.init_app(app)
     login_manager.login_view = 'main.login'
+    csrf.init_app(app)  # Ensure CSRF protection is initialized
 
     with app.app_context():
         from . import routes

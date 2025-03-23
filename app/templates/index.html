@@ -120,6 +120,7 @@
 
             <div class="col-md-10">
                 <form action="{{ url_for('main.add') }}" method="POST" class="form-inline my-3">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="text" name="title" class="form-control mr-2" placeholder="New Task">
                     <select name="priority" class="form-control mr-2">
                         <option value="1" class="priority-low">Low</option>

@@ -1,4 +1,5 @@
 import pytest
+import os
 from flask import url_for
 from flask_testing import TestCase
 from app import db
@@ -6,19 +7,33 @@ from app.models import User, Task
 from .test_config import create_test_app
 from urllib.parse import urlparse
 from werkzeug.security import generate_password_hash
+from flask_wtf.csrf import CSRFProtect
+import bcrypt
 
 class TestRoutes(TestCase):
     def create_app(self):
-        return create_test_app()
+        app = create_test_app()
+        csrf = CSRFProtect()
+        csrf.init_app(app)
+        return app
 
     def setUp(self):
         db.create_all()
+        username = os.environ.get('TEST_USERNAME')
+        email = os.environ.get('TEST_EMAIL')
+        password = os.environ.get('TEST_PASSWORD')
+        security_question = os.environ.get('TEST_SECURITY_QUESTION')
+        security_answer = os.environ.get('TEST_SECURITY_ANSWER')
+
+        if not all([username, email, password, security_question, security_answer]):
+            raise EnvironmentError("One or more required environment variables are missing")
+        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
         self.user = User(
-            username='testuser',
-            email='test@example.com',
-            password=generate_password_hash('testpassword', method='pbkdf2:sha256'),
-            security_question='Test question?',
-            security_answer='Test answer'
+            username=username,
+            email=email,
+            password=hashed_password,
+            security_question=security_question,
+            security_answer=security_answer
         )
         db.session.add(self.user)
         db.session.commit()
@@ -32,35 +47,55 @@ class TestRoutes(TestCase):
         actual_location = urlparse(response.location).path
         self.assertEqual(actual_location, expected_location)
 
+    def get_csrf_token(self, response):
+        try:
+            return response.data.decode().split('name="csrf_token" value="')[1].split('"')[0]
+        except IndexError:
+            raise ValueError("CSRF token not found in the response")
+
     def login(self):
+        response = self.client.get(url_for('main.login'))
+        csrf_token = self.get_csrf_token(response)
         self.client.post(url_for('main.login'), data=dict(
             username='testuser',
-            password='testpassword'
+            password='testpassword',
+            csrf_token=csrf_token
         ))
 
     def test_login(self):
+        response = self.client.get(url_for('main.login'))
+        csrf_token = self.get_csrf_token(response)
         response = self.client.post(url_for('main.login'), data=dict(
             username='testuser',
-            password='testpassword'
+            password='testpassword',
+            csrf_token=csrf_token
         ))
         self.assert_redirects(response, url_for('main.index'))
 
     def test_register(self):
+        response = self.client.get(url_for('main.register'))
+        csrf_token = self.get_csrf_token(response)
         response = self.client.post(url_for('main.register'), data=dict(
             username='newuser',
             email='new@example.com',
             password='newpassword',
             confirm_password='newpassword',
             security_question='Test question?',
-            security_answer='Test answer'
+            security_answer='Test answer',
+            csrf_token=csrf_token
         ))
         self.assert_redirects(response, url_for('main.login'))
 
     def test_add_task(self):
         self.login()
+        response = self.client.get(url_for('main.add'))
+        if response.status_code == 302:
+            response = self.client.get(response.location)
+        csrf_token = self.get_csrf_token(response)
         response = self.client.post(url_for('main.add'), data=dict(
             title='New Task',
-            priority=1
+            priority=1,
+            csrf_token=csrf_token
         ))
         self.assert_redirects(response, url_for('main.index'))
         task = Task.query.filter_by(title='New Task').first()
@@ -87,8 +122,11 @@ class TestRoutes(TestCase):
         assert task is None
 
     def test_forgot_password(self):
+        response = self.client.get(url_for('main.forgot_password'))
+        csrf_token = self.get_csrf_token(response)
         response = self.client.post(url_for('main.forgot_password'), data=dict(
-            username='testuser'
+            username='testuser',
+            csrf_token=csrf_token
         ))
         self.assert_redirects(response, url_for('main.security_answer'))
 
