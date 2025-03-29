@@ -50,25 +50,6 @@
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            var selectElement = document.getElementById('priority-select');
 
-            function updateSelectClass() {
-                selectElement.classList.remove('priority-low', 'priority-medium', 'priority-high');
-                var selectedValue = selectElement.value;
-                if (selectedValue == '1') {
-                    selectElement.classList.add('priority-low');
-                } else if (selectedValue == '2') {
-                    selectElement.classList.add('priority-medium');
-                } else if (selectedValue == '3') {
-                    selectElement.classList.add('priority-high');
-                }
-            }
-
-            selectElement.addEventListener('change', updateSelectClass);
-            updateSelectClass(); // Initial call to set the class based on the initial value
-        });
-    </script>
 </body>
 </html>

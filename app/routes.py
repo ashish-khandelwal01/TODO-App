@@ -164,10 +164,11 @@ def edit(task_id):
         return redirect(url_for('main.index'))
     return render_template('edit_task.html', task=task)
 
-@main.route('/add_suggested/<string:task_title>')
+@main.route('/add_suggested/<string:task_title>', methods=['POST'])
 @login_required
 def add_suggested(task_title):
-    new_task = Task(title=task_title, user_id=current_user.id)
+    priority = request.form.get('priority', 1)
+    new_task = Task(title=task_title, user_id=current_user.id, priority=priority)
     db.session.add(new_task)
     db.session.commit()
     return redirect(url_for('main.index'))
