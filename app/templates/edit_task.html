@@ -6,6 +6,20 @@
     <title>Edit Task</title>
     <!-- Bootstrap CSS -->
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .priority-low {
+            background-color: green;
+            color: white;
+        }
+        .priority-medium {
+            background-color: orange;
+            color: white;
+        }
+        .priority-high {
+            background-color: red;
+            color: white;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -21,7 +35,13 @@
         </nav>
         <h1 class="mt-5">Edit Task</h1>
         <form action="{{ url_for('main.edit', task_id=task.id) }}" method="POST" class="form-inline my-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="text" name="title" class="form-control mr-2" value="{{ task.title }}" placeholder="Task Title">
+            <select name="priority" class="form-control mr-2" id="priority-select">
+                <option value="1" {% if task.priority == 1 %}selected{% endif %} class="priority-low">Low</option>
+                <option value="2" {% if task.priority == 2 %}selected{% endif %} class="priority-medium">Medium</option>
+                <option value="3" {% if task.priority == 3 %}selected{% endif %} class="priority-high">High</option>
+            </select>
             <button type="submit" class="btn btn-primary">Save</button>
         </form>
         <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Cancel</a>
@@ -30,5 +50,6 @@
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
 </body>
 </html>

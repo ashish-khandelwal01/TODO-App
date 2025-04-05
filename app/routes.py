@@ -1,13 +1,11 @@
-# app/routes.py
-
 from flask import Blueprint, render_template, redirect, url_for, request, session, jsonify
 from flask_login import login_user, login_required, logout_user, current_user
-from werkzeug.security import check_password_hash, generate_password_hash
-
+import bcrypt
 from app import db
 from app.models import User, Task
 
 main = Blueprint('main', __name__)
+
 
 @main.route('/login', methods=['GET', 'POST'])
 def login():
@@ -16,7 +14,7 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
         user = User.query.filter_by(username=username).first()
-        if user and check_password_hash(user.password, password):
+        if user and bcrypt.checkpw(password.encode('utf-8'), user.password):
             login_user(user)
             session.permanent = True
             return redirect(url_for('main.index'))
@@ -39,7 +37,7 @@ def register():
         confirm_password = request.form.get('confirm_password')
         security_question = request.form.get('security_question')
         security_answer = request.form.get('security_answer')
-        hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
+        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
         new_user = User(username=username, email=email, password=hashed_password, security_question=security_question,
                         security_answer=security_answer)
         db.session.add(new_user)
@@ -77,7 +75,7 @@ def index():
     ]
     return render_template('index.html', tasks=tasks, suggested_tasks=suggested_tasks, sort_by=sort_by, filter_by=filter_by)
 
-@main.route('/add', methods=['POST'])
+@main.route('/add', methods=['GET', 'POST'])
 @login_required
 def add():
     title = request.form.get('title')
@@ -149,7 +147,7 @@ def reset_password():
         username = session.get('username')
         user = User.query.filter_by(username=username).first()
         if user:
-            hashed_password = generate_password_hash(new_password, method='pbkdf2:sha256')
+            hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
             user.password = hashed_password
             db.session.commit()
             return jsonify({'message': 'Your password has been reset successfully.', 'status': 'success'})
@@ -161,14 +159,17 @@ def edit(task_id):
     task = Task.query.get(task_id)
     if request.method == 'POST':
         task.title = request.form.get('title')
+        task.priority = request.form.get('priority')
         db.session.commit()
         return redirect(url_for('main.index'))
     return render_template('edit_task.html', task=task)
 
-@main.route('/add_suggested/<string:task_title>')
+@main.route('/add_suggested/<string:task_title>', methods=['POST'])
 @login_required
 def add_suggested(task_title):
-    new_task = Task(title=task_title, user_id=current_user.id)
+    priority = request.form.get('priority', 1)
+    new_task = Task(title=task_title, user_id=current_user.id, priority=priority)
     db.session.add(new_task)
     db.session.commit()
     return redirect(url_for('main.index'))
+

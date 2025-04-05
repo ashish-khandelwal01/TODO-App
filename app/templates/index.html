@@ -120,6 +120,7 @@
 
             <div class="col-md-10">
                 <form action="{{ url_for('main.add') }}" method="POST" class="form-inline my-3">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="text" name="title" class="form-control mr-2" placeholder="New Task">
                     <select name="priority" class="form-control mr-2">
                         <option value="1" class="priority-low">Low</option>
@@ -152,20 +153,28 @@
                 </div>
 
                 <div class="suggested-tasks">
-                    <h2>Suggested Tasks</h2>
-                    <ul class="list-group">
-                        {% for suggested_task in suggested_tasks %}
-                            {% if suggested_task not in tasks|map(attribute='title') %}
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    {{ suggested_task }}
-                                    <a href="{{ url_for('main.add_suggested', task_title=suggested_task) }}" class="btn btn-primary btn-sm">
+                <h2>Suggested Tasks</h2>
+                <ul class="list-group">
+                    {% for suggested_task in suggested_tasks %}
+                        {% if suggested_task not in tasks|map(attribute='title') %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                {{ suggested_task }}
+                                <form action="{{ url_for('main.add_suggested', task_title=suggested_task) }}" method="POST" class="form-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <select name="priority" class="form-control mr-2">
+                                        <option value="1" class="priority-low">Low</option>
+                                        <option value="2" class="priority-medium">Medium</option>
+                                        <option value="3" class="priority-high">High</option>
+                                    </select>
+                                    <button type="submit" class="btn btn-primary btn-sm">
                                         <i class="fas fa-plus"></i>
-                                    </a>
-                                </li>
-                            {% endif %}
-                        {% endfor %}
-                    </ul>
-                </div>
+                                    </button>
+                                </form>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+            </div>
             </div>
         </div>
     </div>
