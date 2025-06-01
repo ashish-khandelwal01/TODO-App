@@ -1129,44 +1129,99 @@ function initializeClientSideFiltering() {
     }
 }
 
-function initializeNestedTaskFeatures() {
-    // Auto-collapse deeply nested tasks on page load
-    const deeplyNestedTasks = document.querySelectorAll('.task-container[data-depth="2"], .task-container[data-depth="3"]');
-    deeplyNestedTasks.forEach(task => {
-        const subtasksContainer = task.querySelector('.subtasks-container');
-        if (subtasksContainer) {
-            subtasksContainer.style.display = 'none';
-            const toggleIcon = task.querySelector('.subtask-toggle i');
-            if (toggleIcon) {
-                toggleIcon.className = 'fas fa-chevron-right';
-            }
+function initializeClientSideFiltering() {
+    // Get current filter state from URL params on page load
+    const urlParams = new URLSearchParams(window.location.search);
+    const showCompleted = urlParams.get('show_completed') || 'all';
+    const filterBy = urlParams.get('filter_by') || '';
+
+    // Apply filters immediately on page load if URL params exist
+    if (urlParams.has('show_completed') || urlParams.has('filter_by')) {
+        applyClientSideFilters(showCompleted, filterBy);
+    }
+
+    // Add event listener to the filter form for the Apply button
+    const filterForm = document.querySelector('form[action*="index"]');
+    if (filterForm) {
+        filterForm.addEventListener('submit', function(e) {
+            // Prevent default form submission
+            e.preventDefault();
+
+            // Get current filter values
+            const showCompletedSelect = document.getElementById('show_completed');
+            const filterBySelect = document.getElementById('filter_by');
+            const sortBySelect = document.getElementById('sort_by');
+
+            const showCompleted = showCompletedSelect ? showCompletedSelect.value : 'all';
+            const filterBy = filterBySelect ? filterBySelect.value : '';
+            const sortBy = sortBySelect ? sortBySelect.value : 'priority';
+
+            // Apply client-side filtering
+            applyClientSideFilters(showCompleted, filterBy);
+
+            // Apply sorting if needed
+            applySorting(sortBy);
+
+            // Optional: Update URL without page reload
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('show_completed', showCompleted);
+            newUrl.searchParams.set('filter_by', filterBy);
+            newUrl.searchParams.set('sort_by', sortBy);
+
+            // Remove empty parameters
+            if (!filterBy) newUrl.searchParams.delete('filter_by');
+            if (showCompleted === 'all') newUrl.searchParams.delete('show_completed');
+
+            window.history.replaceState({}, '', newUrl);
+        });
+    }
+}
+
+// Add sorting functionality
+function applySorting(sortBy) {
+    const taskList = document.querySelector('.task-list');
+    if (!taskList) return;
+
+    const taskContainers = Array.from(taskList.children);
+
+    taskContainers.sort((a, b) => {
+        if (sortBy === 'priority') {
+            // Get priority values
+            const aPriority = getPriorityValue(a);
+            const bPriority = getPriorityValue(b);
+            return bPriority - aPriority; // High to low priority
+        } else if (sortBy === 'title') {
+            // Get task titles
+            const aTitle = getTaskTitle(a);
+            const bTitle = getTaskTitle(b);
+            return aTitle.localeCompare(bTitle);
         }
+        return 0;
     });
 
-    // Keyboard shortcuts for nested task management
-    document.addEventListener('keydown', function(e) {
-        if (e.ctrlKey && e.key === 'Enter') {
-            // Ctrl+Enter to add subtask to focused task
-            const activeElement = document.activeElement;
-            const taskContainer = activeElement.closest('.task-container');
-            if (taskContainer) {
-                const taskId = taskContainer.querySelector('.subtask-toggle')?.id?.replace('toggle-', '');
-                if (taskId) {
-                    showAddSubtaskForm(taskId);
-                }
-            }
-        } else if (e.key === 'Escape') {
-            // Escape to cancel any open subtask forms
-            const openForms = document.querySelectorAll('.add-subtask-form[style*="block"]');
-            openForms.forEach(form => {
-                const taskId = form.id.replace('add-subtask-form-', '');
-                hideAddSubtaskForm(taskId);
-            });
-        }
+    // Reorder DOM elements
+    taskContainers.forEach(container => {
+        taskList.appendChild(container);
     });
+}
 
-    // Initialize drag and drop functionality
-    initializeDragAndDrop();
+function getPriorityValue(container) {
+    const priorityBadge = container.querySelector('.priority-badge, .badge');
+    if (priorityBadge) {
+        if (priorityBadge.classList.contains('priority-3') || priorityBadge.textContent.toLowerCase().includes('high')) {
+            return 3;
+        } else if (priorityBadge.classList.contains('priority-2') || priorityBadge.textContent.toLowerCase().includes('medium')) {
+            return 2;
+        } else if (priorityBadge.classList.contains('priority-1') || priorityBadge.textContent.toLowerCase().includes('low')) {
+            return 1;
+        }
+    }
+    return 2; // Default to medium priority
+}
+
+function getTaskTitle(container) {
+    const titleElement = container.querySelector('.task-title, .card-body h6, .d-flex span');
+    return titleElement ? titleElement.textContent.trim() : '';
 }
 
 function initializeAutoSave() {
