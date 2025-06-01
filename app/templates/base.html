@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}To-Do List{% endblock %}</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+
+    <!-- Dark mode initialization script - MUST be in head to prevent flash -->
+    <script>
+        (function() {
+            const isDarkMode = localStorage.getItem('darkMode') === 'true';
+            if (isDarkMode) {
+                // Only add to documentElement to prevent flash, body will be handled by main script
+                document.documentElement.classList.add('dark-mode');
+            }
+        })();
+    </script>
+
+    <style>
+        /* Base styles */
+        body {
+            background-color: #f8f9fa;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .navbar {
+            margin-bottom: 20px;
+            background-color: #343a40;
+        }
+
+        .navbar-brand, .nav-link {
+            color: #ffffff !important;
+        }
+
+        .navbar-brand:hover, .nav-link:hover {
+            color: #d4d4d4 !important;
+        }
+
+        .task-title {
+            font-size: 1.2em;
+        }
+
+        .task-actions a {
+            margin-right: 5px;
+        }
+
+        .suggested-tasks {
+            margin-top: 30px;
+        }
+
+        .priority-label {
+            font-size: 0.9em;
+            font-weight: bold;
+            margin-right: 10px;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+
+        .priority-low {
+            background-color: green;
+            color: white;
+        }
+
+        .priority-medium {
+            background-color: orange;
+            color: white;
+        }
+
+        .priority-high {
+            background-color: red;
+            color: white;
+        }
+
+        .task-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            background-color: #fff;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        .task-item.completed .task-title {
+            text-decoration: line-through;
+            color: #6c757d;
+        }
+
+        .task-item .task-actions {
+            display: flex;
+            align-items: center;
+        }
+
+        .task-item .task-actions a {
+            margin-left: 5px;
+        }
+
+        .sidebar {
+            background-color: #fff;
+            padding: 20px;
+            border-right: 1px solid #ddd;
+            height: 100vh;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        .subtask-info {
+            font-size: 0.85em;
+            color: #6c757d;
+            margin-right: 10px;
+        }
+
+        .progress-bar-small {
+            height: 4px;
+            margin-top: 5px;
+            margin-bottom: 5px;
+        }
+
+        .task-content {
+            flex-grow: 1;
+        }
+
+        /* Subtask specific styles */
+        .subtask-item {
+            margin-left: 30px;
+            margin-top: 5px;
+            margin-bottom: 5px;
+            padding: 8px;
+            border-left: 3px solid #007bff;
+            background-color: #f8f9fa;
+            border-radius: 3px;
+        }
+
+        .subtask-item .task-title {
+            font-size: 1em;
+            color: #6c757d;
+        }
+
+        .subtask-item.completed .task-title {
+            text-decoration: line-through;
+            color: #adb5bd;
+        }
+
+        .subtask-toggle {
+            cursor: pointer;
+            color: #007bff;
+            margin-left: 10px;
+        }
+
+        .subtask-toggle:hover {
+            color: #0056b3;
+        }
+
+        .subtasks-container {
+            margin-top: 10px;
+        }
+
+        .parent-task-item {
+            margin-bottom: 5px;
+        }
+
+        /* Dark mode styles */
+        body.dark-mode {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+        }
+
+        .dark-mode .navbar {
+            background-color: #2d2d2d;
+        }
+
+        .dark-mode .navbar-light .navbar-brand {
+            color: #e0e0e0 !important;
+        }
+
+        .dark-mode .navbar-light .navbar-nav .nav-link {
+            color: #e0e0e0 !important;
+        }
+
+        .dark-mode .sidebar {
+            background-color: #2d2d2d;
+            border-right-color: #404040;
+            color: #e0e0e0;
+        }
+
+        .dark-mode .task-item {
+            background-color: #2d2d2d;
+            border-color: #404040;
+            color: #e0e0e0;
+        }
+
+        .dark-mode .subtask-item {
+            background-color: #3a3a3a;
+            border-left-color: #007bff;
+        }
+
+        .dark-mode .task-item.completed .task-title {
+            color: #888;
+        }
+
+        .dark-mode .subtask-item.completed .task-title {
+            color: #666;
+        }
+
+        .dark-mode .form-control {
+            background-color: #3a3a3a;
+            border-color: #404040;
+            color: #e0e0e0;
+        }
+
+        .dark-mode .form-control:focus {
+            background-color: #3a3a3a;
+            border-color: #007bff;
+            color: #e0e0e0;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+
+        .dark-mode .list-group-item {
+            background-color: #2d2d2d;
+            border-color: #404040;
+            color: #e0e0e0;
+        }
+
+        .dark-mode .subtask-info {
+            color: #aaa;
+        }
+
+        .dark-mode .task-title {
+            color: #e0e0e0;
+        }
+
+        .dark-mode .subtask-item .task-title {
+            color: #ccc;
+        }
+
+        .dark-mode .alert-danger {
+            background-color: #721c24;
+            border-color: #842029;
+            color: #f8d7da;
+        }
+
+        .dark-mode .btn-link {
+            color: #66b3ff;
+        }
+
+        .dark-mode .btn-link:hover {
+            color: #4da6ff;
+        }
+
+        /* Dark mode toggle styles for pages that have it */
+        .dark-mode-toggle {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+
+        .dark-mode .dark-mode-toggle {
+            border-top-color: #404040;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            border-radius: 24px;
+            transition: .4s;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            border-radius: 50%;
+            transition: .4s;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: #007bff;
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+
+        {% block extra_css %}{% endblock %}
+    </style>
+</head>
+<body>
+    {% block content %}{% endblock %}
+
+    <!-- Bootstrap JS and dependencies -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <!-- Universal dark mode script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const darkModeToggle = document.getElementById('darkModeToggle');
+            const body = document.body;
+            const html = document.documentElement;
+
+            // Set initial state based on saved preference
+            const isDarkMode = localStorage.getItem('darkMode') === 'true';
+            if (darkModeToggle) {
+                darkModeToggle.checked = isDarkMode;
+            }
+
+            // Ensure dark mode class is applied to body and removed from html
+            if (isDarkMode) {
+                body.classList.add('dark-mode');
+                html.classList.remove('dark-mode'); // Clean up any html class
+            } else {
+                body.classList.remove('dark-mode');
+                html.classList.remove('dark-mode'); // Clean up any html class
+            }
+
+            // Toggle dark mode when switch is changed
+            if (darkModeToggle) {
+                darkModeToggle.addEventListener('change', function() {
+                    if (this.checked) {
+                        body.classList.add('dark-mode');
+                        html.classList.remove('dark-mode'); // Ensure consistency
+                        localStorage.setItem('darkMode', 'true');
+                    } else {
+                        body.classList.remove('dark-mode');
+                        html.classList.remove('dark-mode'); // Ensure consistency
+                        localStorage.setItem('darkMode', 'false');
+                    }
+                });
+            }
+        });
+
+        {% block extra_js %}{% endblock %}
+    </script>
+
+    {% block custom_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,120 @@
+{% macro render_task(task, depth) %}
+    <div class="task-container border-bottom" data-depth="{{ depth }}" data-task-id="{{ task.id }}">
+        <div class="task-item p-3 {% if task.completed %}task-completed{% endif %}" style="margin-left: {{ depth * 20 }}px;">
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="task-content flex-grow-1">
+                    <div class="d-flex align-items-center mb-2 gap-2">
+                        {% if depth > 0 %}
+                            <span class="task-depth-indicator">
+                                {% for i in range(depth) %}
+                                    {% if loop.last %}
+                                        <i class="fas fa-arrow-right text-muted"></i>
+                                    {% else %}
+                                        <span class="text-muted">│</span>
+                                    {% endif %}
+                                {% endfor %}
+                            </span>
+                        {% endif %}
+                        <h6 class="task-title mb-0 mr-2 {% if task.completed %}text-decoration-line-through text-muted{% endif %}">
+                            {{ task.title }}
+                        </h6>
+                        <span class="badge priority-badge priority-{{ task.priority }} mr-2">
+                            {% if task.priority == 1 %}Low{% elif task.priority == 2 %}Medium{% else %}High{% endif %}
+                        </span>
+                        {% set subtask_list = task.subtasks|list %}
+                        {% set subtask_count = subtask_list|length %}
+                        {% set completed_count = subtask_list|selectattr('completed')|list|length %}
+                        {% if subtask_count > 0 %}
+                            <span class="badge bg-info">
+                                {{ completed_count }}/{{ subtask_count }} subtasks
+                            </span>
+                            <button class="btn btn-sm btn-outline-secondary subtask-toggle mr-2"
+                                    data-task-id="{{ task.id }}"
+                                    id="toggle-{{ task.id }}">
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                        {% endif %}
+                        <button class="btn btn-sm btn-outline-info add-subtask-btn"
+                                data-task-id="{{ task.id }}"
+                                title="Add Subtask">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                    {% if subtask_count > 0 %}
+                        {% set completion_percentage = (completed_count / subtask_count * 100)|round %}
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-success" role="progressbar"
+                                 style="width: {{ completion_percentage }}%"
+                                 aria-valuenow="{{ completion_percentage }}"
+                                 aria-valuemin="0" aria-valuemax="100">
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="task-actions ms-3">
+                    <div class="d-flex gap-2">
+                        <a href="{{ url_for('main.task_details', task_id=task.id) }}"
+                           class="btn btn-outline-info btn-sm" title="View Details">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                        <a href="{{ url_for('main.complete', task_id=task.id) }}"
+                           class="btn btn-outline-success btn-sm" title="{% if task.completed %}Mark Incomplete{% else %}Mark Complete{% endif %}">
+                            <i class="fas {% if task.completed %}fa-undo{% else %}fa-check{% endif %}"></i>
+                        </a>
+                        <a href="{{ url_for('main.edit', task_id=task.id) }}"
+                           class="btn btn-outline-warning btn-sm" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <a href="{{ url_for('main.delete', task_id=task.id) }}"
+                           class="btn btn-outline-danger btn-sm" title="Delete"
+                           onclick="return confirm('This will also delete all subtasks. Are you sure?')">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inline Add Subtask Form -->
+            <div class="add-subtask-form mt-2" id="add-subtask-form-{{ task.id }}" style="display: none;">
+                <div class="alert alert-info alert-sm mb-2">
+                    <small><i class="fas fa-info-circle"></i> Adding subtask to: <strong>{{ task.title }}</strong></small>
+                </div>
+                <form action="{{ url_for('main.add') }}" method="POST" class="row g-2">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="parent_task_id" value="{{ task.id }}">
+                    <input type="hidden" name="is_subtask" value="true">
+                    <div class="col-md-6">
+                        <input type="text" name="title" class="form-control form-control-sm"
+                               placeholder="Enter subtask title..." required>
+                    </div>
+                    <div class="col-md-3">
+                        <select name="priority" class="form-select form-select-sm">
+                            <option value="1">Low</option>
+                            <option value="2" selected>Medium</option>
+                            <option value="3">High</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-success btn-sm me-1">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm cancel-subtask"
+                                data-task-id="{{ task.id }}">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- FIXED: Subtasks Container with proper visibility and z-index -->
+        {% if subtask_count > 0 %}
+            <div class="subtasks-container" id="subtasks-{{ task.id }}"
+                 style="display: block; position: relative; z-index: {{ 100 - depth }};">
+                {% for subtask in subtask_list %}
+                    {{ render_task(subtask, depth + 1) }}
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+{% endmacro %}

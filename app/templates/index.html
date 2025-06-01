@@ -1,186 +1,1460 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>To-Do List</title>
-    <!-- Bootstrap CSS -->
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome CSS -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
-    <style>
-        body {
-            background-color: #f8f9fa;
-        }
-        .navbar {
-            margin-bottom: 20px;
-            background-color: #343a40;
-        }
-        .navbar-brand, .nav-link {
-            color: #ffffff !important;
-        }
-        .navbar-brand:hover, .nav-link:hover {
-            color: #d4d4d4 !important;
-        }
-        .task-title {
-            font-size: 1.2em;
-        }
-        .task-actions a {
-            margin-right: 5px;
-        }
-        .suggested-tasks {
-            margin-top: 30px;
-        }
-        .priority-label {
-            font-size: 0.9em;
-            font-weight: bold;
-            margin-right: 10px;
-            padding: 2px 5px;
-            border-radius: 3px;
-        }
-        .priority-low {
-            background-color: green;
-            color: white;
-        }
-        .priority-medium {
-            background-color: orange;
-            color: white;
-        }
-        .priority-high {
-            background-color: red;
-            color: white;
-        }
-        .task-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            margin-bottom: 10px;
-            background-color: #fff;
-        }
-        .task-item.completed .task-title {
-            text-decoration: line-through;
-            color: #6c757d;
-        }
-        .task-item .task-actions {
-            display: flex;
-            align-items: center;
-        }
-        .task-item .task-actions a {
-            margin-left: 5px;
-        }
-        .sidebar {
-            background-color: #fff;
-            padding: 20px;
-            border-right: 1px solid #ddd;
-            height: 100vh;
-        }
-    </style>
-</head>
-<body>
-    <div class="container-fluid">
-        <nav class="navbar navbar-expand-lg navbar-dark">
-            <a class="navbar-brand" href="#">To-Do List</a>
-            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+{% extends "base.html" %}
+
+{% block title %}To-Do List{% endblock %}
+
+{% block content %}
+{% import "_macros.html" as macros %}
+
+<div class="container-fluid">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+        <div class="container-fluid">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ml-auto">
+            <div class="collapse navbar-collapse d-flex justify-content-between" id="navbarNav">
+                <a class="navbar-brand" href="#">
+                    <i class="fas fa-tasks icon-pad"></i>To-Do List
+                </a>
+                <ul class="navbar-nav">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('main.logout') }}">Logout</a>
+                        <a class="nav-link" href="{{ url_for('main.logout') }}">
+                            <i class="fas fa-sign-out-alt icon-pad"></i>Logout
+                        </a>
                     </li>
                 </ul>
             </div>
-        </nav>
+        </div>
+    </nav>
 
-        <div class="row">
-            <div class="col-md-2 sidebar">
-                <form method="GET" action="{{ url_for('main.index') }}" class="form">
-                    <div class="form-group">
-                        <label for="sort_by">Sort by:</label>
-                        <select name="sort_by" id="sort_by" class="form-control">
-                            <option value="priority" {% if sort_by == 'priority' %}selected{% endif %}>Priority</option>
-                            <option value="title" {% if sort_by == 'title' %}selected{% endif %}>Title</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="filter_by">Filter by priority:</label>
-                        <select name="filter_by" id="filter_by" class="form-control">
-                            <option value="" {% if not filter_by %}selected{% endif %}>All</option>
-                            <option value="1" {% if filter_by == '1' %}selected{% endif %}>Low</option>
-                            <option value="2" {% if filter_by == '2' %}selected{% endif %}>Medium</option>
-                            <option value="3" {% if filter_by == '3' %}selected{% endif %}>High</option>
-                        </select>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Apply</button>
-                </form>
-            </div>
-
-            <div class="col-md-10">
-                <form action="{{ url_for('main.add') }}" method="POST" class="form-inline my-3">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="text" name="title" class="form-control mr-2" placeholder="New Task">
-                    <select name="priority" class="form-control mr-2">
-                        <option value="1" class="priority-low">Low</option>
-                        <option value="2" class="priority-medium">Medium</option>
-                        <option value="3" class="priority-high">High</option>
-                    </select>
-                    <button type="submit" class="btn btn-primary">Add</button>
-                </form>
-
-                <div class="task-list">
-                    {% for task in tasks %}
-                        <div class="task-item {% if task.completed %}completed{% endif %}">
-                            <span class="task-title">{{ task.title }}</span>
-                            <div class="task-actions">
-                                <span class="priority-label {% if task.priority == 1 %}priority-low{% elif task.priority == 2 %}priority-medium{% else %}priority-high{% endif %}">
-                                    {% if task.priority == 1 %}Low{% elif task.priority == 2 %}Medium{% else %}High{% endif %}
-                                </span>
-                                <a href="{{ url_for('main.complete', task_id=task.id) }}" class="btn btn-success btn-sm">
-                                    <i class="fas fa-check"></i>
-                                </a>
-                                <a href="{{ url_for('main.edit', task_id=task.id) }}" class="btn btn-warning btn-sm">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <a href="{{ url_for('main.delete', task_id=task.id) }}" class="btn btn-danger btn-sm">
-                                    <i class="fas fa-trash"></i>
-                                </a>
-                            </div>
-                        </div>
-                    {% endfor %}
+    <div class="row g-4">
+        <!-- Sidebar -->
+        <div class="col-lg-3 col-md-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-filter icon-pad"></i>Filters & Sort
+                    </h6>
                 </div>
-
-                <div class="suggested-tasks">
-                <h2>Suggested Tasks</h2>
-                <ul class="list-group">
-                    {% for suggested_task in suggested_tasks %}
-                        {% if suggested_task not in tasks|map(attribute='title') %}
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                {{ suggested_task }}
-                                <form action="{{ url_for('main.add_suggested', task_title=suggested_task) }}" method="POST" class="form-inline">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <select name="priority" class="form-control mr-2">
-                                        <option value="1" class="priority-low">Low</option>
-                                        <option value="2" class="priority-medium">Medium</option>
-                                        <option value="3" class="priority-high">High</option>
-                                    </select>
-                                    <button type="submit" class="btn btn-primary btn-sm">
-                                        <i class="fas fa-plus"></i>
-                                    </button>
-                                </form>
-                            </li>
-                        {% endif %}
-                    {% endfor %}
-                </ul>
+                <div class="card-body">
+                    <form method="GET" action="{{ url_for('main.index') }}">
+                        <div class="mb-3">
+                            <label for="sort_by" class="form-label">Sort by:</label>
+                            <select name="sort_by" id="sort_by" class="form-select">
+                                <option value="priority" {% if sort_by == 'priority' %}selected{% endif %}>Priority</option>
+                                <option value="title" {% if sort_by == 'title' %}selected{% endif %}>Title</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="filter_by" class="form-label">Filter by priority:</label>
+                            <select name="filter_by" id="filter_by" class="form-select">
+                                <option value="" {% if not filter_by %}selected{% endif %}>All</option>
+                                <option value="1" {% if filter_by == '1' %}selected{% endif %}>Low</option>
+                                <option value="2" {% if filter_by == '2' %}selected{% endif %}>Medium</option>
+                                <option value="3" {% if filter_by == '3' %}selected{% endif %}>High</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="show_completed" class="form-label">Show completed:</label>
+                            <select name="show_completed" id="show_completed" class="form-select">
+                                <option value="all" {% if show_completed == 'all' %}selected{% endif %}>All Tasks</option>
+                                <option value="false" {% if show_completed == 'false' %}selected{% endif %}>Incomplete Only</option>
+                                <option value="true" {% if show_completed == 'true' %}selected{% endif %}>Completed Only</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-search icon-pad"></i>Apply
+                        </button>
+                    </form>
+                </div>
             </div>
+
+            <!-- Quick Actions -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h6 class="card-title mb-3">
+                        <i class="fas fa-bolt icon-pad"></i>Quick Actions
+                    </h6>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary btn-sm" onclick="expandAllSubtasks()">
+                            <i class="fas fa-expand-arrows-alt icon-pad"></i>Expand All
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="collapseAllSubtasks()">
+                            <i class="fas fa-compress-arrows-alt icon-pad"></i>Collapse All
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h6 class="card-title mb-3">
+                        <i class="fas fa-search icon-pad"></i>Search Tasks
+                    </h6>
+                    <div class="input-group">
+                        <input type="text" class="form-control form-control-sm"
+                               id="taskSearch" placeholder="Search tasks...">
+                        <button class="btn btn-outline-secondary btn-sm" onclick="clearSearch()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dark Mode Toggle -->
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span><i class="fas fa-moon icon-pad"></i>Dark Mode</span>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="darkModeToggle">
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
+
+        <!-- Main Content -->
+        <div class="col-lg-9 col-md-8">
+            <!-- Add New Task -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-success text-white">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-plus icon-pad"></i>Add New Task
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-3">
+                        <small><i class="fas fa-info-circle"></i> This creates a new main task. Use the <i class="fas fa-plus"></i> button next to existing tasks to add subtasks.</small>
+                    </div>
+                    <form action="{{ url_for('main.add') }}" method="POST" class="row g-3">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="col-md-6">
+                            <input type="text" name="title" class="form-control"
+                                   placeholder="Enter task title..." required>
+                        </div>
+                        <div class="col-md-3">
+                            <select name="priority" class="form-select">
+                                <option value="1" class="text-success">Low Priority</option>
+                                <option value="2" class="text-warning" selected>Medium Priority</option>
+                                <option value="3" class="text-danger">High Priority</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <textarea name="description" class="form-control"
+                                      placeholder="Optional description..." rows="1" style="display: none;"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-plus icon-pad"></i>Add Task
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Markdown Import -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header" id="markdownHeader">
+                    <h6 class="mb-0">
+                        <button class="btn btn-link text-decoration-none p-0" type="button"
+                                data-bs-toggle="collapse" data-bs-target="#markdownUploadCollapse"
+                                aria-expanded="false" aria-controls="markdownUploadCollapse">
+                            <i class="fas fa-file-upload icon-pad"></i>Import Tasks from Markdown File
+                            <i class="fas fa-chevron-down ms-2"></i>
+                        </button>
+                    </h6>
+                </div>
+                <div id="markdownUploadCollapse" class="collapse">
+                    <div class="card-body">
+                        <form id="markdownUploadForm" action="{{ url_for('main.import_markdown') }}"
+                              method="POST" enctype="multipart/form-data">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="markdownFile" class="form-label">Choose Markdown File</label>
+                                    <input type="file" class="form-control" id="markdownFile"
+                                           name="markdown_file" accept=".md,.txt" required>
+                                    <div class="form-text">
+                                        Upload a markdown file with tasks. Supports .md and .txt files.
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="defaultPriority" class="form-label">Default Priority</label>
+                                    <select name="default_priority" id="defaultPriority" class="form-select">
+                                        <option value="1">Low Priority</option>
+                                        <option value="2" selected>Medium Priority</option>
+                                        <option value="3">High Priority</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">&nbsp;</label>
+                                    <button type="submit" class="btn btn-info w-100">
+                                        <i class="fas fa-upload icon-pad"></i>Import Tasks
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="form-check mt-3">
+                                <input class="form-check-input" type="checkbox" id="previewMode"
+                                       name="preview_mode" checked>
+                                <label class="form-check-label" for="previewMode">
+                                    Preview before importing (recommended)
+                                </label>
+                            </div>
+                        </form>
+
+                        <!-- Preview Area -->
+                        <div id="previewArea" class="mt-4" style="display: none;">
+                            <div class="alert alert-info">
+                                <h6 class="alert-heading">Preview of Tasks to be Imported:</h6>
+                                <div id="previewContent" class="border rounded p-3 bg-light mt-2"
+                                     style="max-height: 300px; overflow-y: auto;">
+                                </div>
+                                <div class="mt-3">
+                                    <button id="confirmImport" class="btn btn-success me-2">
+                                        <i class="fas fa-check icon-pad"></i>Confirm Import
+                                    </button>
+                                    <button id="cancelImport" class="btn btn-secondary">
+                                        <i class="fas fa-times icon-pad"></i>Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Format Guide -->
+                        <div class="mt-3">
+                            <div class="alert alert-light">
+                                <h6 class="alert-heading">Supported Formats:</h6>
+                                <ul class="mb-0 small">
+                                    <li><code># Main Task Title</code> - Creates a main task</li>
+                                    <li><code>## Subtask Title</code> - Creates a subtask under the previous main task</li>
+                                    <li><code>### Sub-subtask Title</code> - Creates a nested subtask</li>
+                                    <li><code>- [ ] Task Title</code> - Creates an incomplete task</li>
+                                    <li><code>- [x] Task Title</code> - Creates a completed task</li>
+                                    <li><code>* Task Title</code> - Creates a task (bullet point)</li>
+                                    <li><code>  - Nested item</code> - Creates nested subtask (indented)</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Task Statistics -->
+            {% if tasks %}
+                {% set task_list = tasks|list %}
+                {% set total_tasks = task_list|length %}
+                {% set completed_tasks = task_list|selectattr('completed')|list|length %}
+                {% set high_priority_tasks = task_list|selectattr('priority', 'equalto', 3)|list|length %}
+
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-md-3">
+                                <div class="h3 text-primary">{{ total_tasks }}</div>
+                                <div class="text-muted">Total Tasks</div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="h3 text-success">{{ completed_tasks }}</div>
+                                <div class="text-muted">Completed</div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="h3 text-warning">{{ total_tasks - completed_tasks }}</div>
+                                <div class="text-muted">Remaining</div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="h3 text-danger">{{ high_priority_tasks }}</div>
+                                <div class="text-muted">High Priority</div>
+                            </div>
+                        </div>
+                        {% if total_tasks > 0 %}
+                            <div class="progress mt-3" style="height: 10px;">
+                                <div class="progress-bar bg-success" role="progressbar"
+                                     style="width: {{ (completed_tasks / total_tasks * 100)|round }}%">
+                                </div>
+                            </div>
+                            <div class="text-center mt-2">
+                                <small class="text-muted">
+                                    {{ (completed_tasks / total_tasks * 100)|round }}% Complete
+                                </small>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Task List -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-list icon-pad"></i>Your Tasks
+                        {% if tasks %}
+                            <span class="badge bg-light text-dark ms-2">{{ tasks|list|length }}</span>
+                        {% endif %}
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    {% if tasks %}
+                        <div class="task-list">
+                            {% for task in tasks %}
+                                {{ macros.render_task(task, 0) }}
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-tasks fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No tasks yet</h5>
+                            <p class="text-muted">Add your first task above to get started!</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Suggested Tasks -->
+            {% if suggested_tasks %}
+                <div class="card shadow-sm">
+                    <div class="card-header bg-warning text-dark">
+                        <h6 class="card-title mb-0">
+                            <i class="fas fa-lightbulb icon-pad"></i>Suggested Tasks
+                        </h6>
+                    </div>
+                    <div class="card-body p-0">
+                        {% set existing_titles = tasks|map(attribute='title')|list %}
+                        {% for suggested_task in suggested_tasks %}
+                            {% if suggested_task not in existing_titles %}
+                                <div class="suggested-task-item p-3 border-bottom d-flex justify-content-between align-items-center">
+                                    <span class="flex-grow-1">{{ suggested_task }}</span>
+                                    <form action="{{ url_for('main.add_suggested', task_title=suggested_task) }}"
+                                          method="POST" class="d-flex align-items-center">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <select name="priority" class="form-select form-select-sm me-2" style="width: auto;">
+                                            <option value="1">Low</option>
+                                            <option value="2" selected>Medium</option>
+                                            <option value="3">High</option>
+                                        </select>
+                                        <button type="submit" class="btn btn-success btn-sm" title="Add Task">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
     </div>
-    <!-- Bootstrap JS and dependencies -->
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-</body>
-</html>
+</div>
+
+<style>
+    /* Custom CSS */
+    .priority-badge {
+        font-size: 0.75em;
+    }
+
+    .priority-1 {
+        background-color: #28a745 !important;
+        color: white;
+    }
+
+    .priority-2 {
+        background-color: #ffc107 !important;
+        color: #212529;
+    }
+
+    .priority-3 {
+        background-color: #dc3545 !important;
+        color: white;
+    }
+
+    .task-completed {
+        opacity: 0.7;
+        background-color: #f8f9fa;
+    }
+
+    .task-container:hover {
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: box-shadow 0.2s ease;
+    }
+
+    .subtask-toggle, .add-subtask-btn {
+        border: none !important;
+        padding: 0.25rem 0.5rem;
+        transition: all 0.2s ease;
+    }
+
+    .subtask-toggle:hover, .add-subtask-btn:hover {
+        transform: scale(1.1);
+    }
+
+    .subtasks-container {
+        border-left: 3px solid #dee2e6;
+        margin-left: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .task-depth-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        margin-right: 0.5rem;
+    }
+
+    .suggested-task-item:last-child {
+        border-bottom: none !important;
+    }
+
+    .add-subtask-form {
+        background-color: #f8f9fa;
+        border-radius: 0.375rem;
+        padding: 0.75rem;
+        border: 1px solid #dee2e6;
+        animation: slideDown 0.3s ease;
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            max-height: 0;
+        }
+        to {
+            opacity: 1;
+            max-height: 200px;
+        }
+    }
+
+    /* Enhanced nesting styles */
+    .task-container[data-depth="0"] {
+        border-left: 4px solid #007bff;
+    }
+
+    .task-container[data-depth="1"] {
+        border-left: 3px solid #28a745;
+        margin-left: 10px;
+    }
+
+    .task-container[data-depth="2"] {
+        border-left: 2px solid #ffc107;
+        margin-left: 20px;
+    }
+
+    .task-container[data-depth="3"] {
+        border-left: 2px solid #dc3545;
+        margin-left: 30px;
+    }
+
+    .task-container[data-depth="4"] {
+        border-left: 2px solid #6f42c1;
+        margin-left: 40px;
+    }
+
+    .task-container[data-depth="5"] {
+        border-left: 2px solid #e83e8c;
+        margin-left: 50px;
+    }
+
+    /* Dark mode styles */
+    .dark-mode {
+        background-color: #1a1a1a;
+        color: #e0e0e0;
+    }
+
+    .dark-mode .card {
+        background-color: #2d2d2d;
+        border-color: #404040;
+        color: #e0e0e0;
+    }
+
+    .dark-mode .card-header {
+        background-color: #3a3a3a !important;
+        border-bottom-color: #404040;
+        color: #e0e0e0 !important;
+    }
+
+    .dark-mode .bg-light {
+        background-color: #3a3a3a !important;
+    }
+
+    .dark-mode .border-bottom {
+        border-bottom-color: #404040 !important;
+    }
+
+    .dark-mode .task-completed {
+        background-color: #333 !important;
+    }
+
+    .dark-mode .form-control,
+    .dark-mode .form-select {
+        background-color: #404040;
+        border-color: #555;
+        color: #e0e0e0;
+    }
+
+    .dark-mode .form-control:focus,
+    .dark-mode .form-select:focus {
+        background-color: #404040;
+        border-color: #0d6efd;
+        color: #e0e0e0;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+
+    .dark-mode .alert-light {
+        background-color: #404040;
+        border-color: #555;
+        color: #e0e0e0;
+    }
+
+    .dark-mode .add-subtask-form {
+        background-color: #404040;
+        border-color: #555;
+    }
+
+    .icon-pad {
+        margin-right: 0.5rem;
+    }
+
+    /* Loading animation */
+    .loading {
+        position: relative;
+    }
+
+    .loading::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Task search highlighting */
+    .task-highlight {
+        background-color: yellow !important;
+        font-weight: bold;
+    }
+
+    .dark-mode .task-highlight {
+        background-color: #ffd700 !important;
+        color: #000 !important;
+    }
+</style>
+
+{% endblock %}
+
+{% block custom_js %}
+<script>
+// Form validation functions
+function validateMainTaskForm() {
+    const title = document.getElementById('main-task-title').value.trim();
+    if (!title) {
+        alert('Please enter a task title');
+        return false;
+    }
+    return true;
+}
+
+// Show add subtask form
+function showAddSubtaskForm(taskId) {
+    // Hide all other open subtask forms first
+    const allForms = document.querySelectorAll('.add-subtask-form');
+    allForms.forEach(form => {
+        if (form.id !== `add-subtask-form-${taskId}`) {
+            form.style.display = 'none';
+        }
+    });
+
+    // Show the specific form for this task
+    const form = document.getElementById(`add-subtask-form-${taskId}`);
+    if (form) {
+        form.style.display = 'block';
+
+        // Focus on the title input
+        const titleInput = form.querySelector('input[name="title"]');
+        if (titleInput) {
+            titleInput.focus();
+        }
+
+        // Ensure the parent task ID is set correctly
+        const parentIdInput = form.querySelector('input[name="parent_task_id"]');
+        if (parentIdInput) {
+            parentIdInput.value = taskId;
+        }
+    }
+}
+
+// Hide add subtask form
+function hideAddSubtaskForm(taskId) {
+    const form = document.getElementById(`add-subtask-form-${taskId}`);
+    if (form) {
+        form.style.display = 'none';
+
+        // Clear the form
+        const titleInput = form.querySelector('input[name="title"]');
+        if (titleInput) {
+            titleInput.value = '';
+        }
+
+        // Reset priority to default
+        const prioritySelect = form.querySelector('select[name="priority"]');
+        if (prioritySelect) {
+            prioritySelect.value = '2'; // Default to Medium
+        }
+    }
+}
+
+// Toggle subtasks visibility
+function toggleSubtasks(taskId) {
+    const subtasksContainer = document.getElementById(`subtasks-${taskId}`);
+    const toggleButton = document.getElementById(`toggle-${taskId}`);
+    const toggleIcon = toggleButton ? toggleButton.querySelector('i') : null;
+
+    if (subtasksContainer) {
+        const isVisible = subtasksContainer.style.display !== 'none';
+
+        if (isVisible) {
+            subtasksContainer.style.display = 'none';
+            if (toggleIcon) {
+                toggleIcon.className = 'fas fa-chevron-right';
+            }
+        } else {
+            subtasksContainer.style.display = 'block';
+            if (toggleIcon) {
+                toggleIcon.className = 'fas fa-chevron-down';
+            }
+        }
+    }
+}
+
+// Validate subtask form before submission
+function validateSubtaskForm(taskId) {
+    const form = document.getElementById(`add-subtask-form-${taskId}`);
+    if (!form) {
+        return false;
+    }
+
+    const titleInput = form.querySelector('input[name="title"]');
+    const parentIdInput = form.querySelector('input[name="parent_task_id"]');
+
+    if (!titleInput || !titleInput.value.trim()) {
+        alert('Please enter a subtask title');
+        if (titleInput) titleInput.focus();
+        return false;
+    }
+
+    if (!parentIdInput || !parentIdInput.value) {
+        alert('Error: Parent task ID is missing');
+        return false;
+    }
+
+    return true;
+}
+
+// Dark mode toggle functionality
+document.addEventListener('DOMContentLoaded', function() {
+    initializeSubtaskFunctionality();
+
+    const darkModeToggle = document.getElementById('darkModeToggle');
+    const body = document.body;
+
+    // Check for saved dark mode preference
+    let isDarkMode = false;
+    try {
+        isDarkMode = sessionStorage.getItem('darkMode') === 'true';
+    } catch (e) {
+        // Fallback for environments without sessionStorage
+    }
+
+    if (isDarkMode) {
+        body.classList.add('dark-mode');
+        if (darkModeToggle) darkModeToggle.checked = true;
+    }
+
+    if (darkModeToggle) {
+        darkModeToggle.addEventListener('change', function() {
+            if (this.checked) {
+                body.classList.add('dark-mode');
+                try {
+                    sessionStorage.setItem('darkMode', 'true');
+                } catch (e) {
+                    // Fallback
+                }
+            } else {
+                body.classList.remove('dark-mode');
+                try {
+                    sessionStorage.setItem('darkMode', 'false');
+                } catch (e) {
+                    // Fallback
+                }
+            }
+        });
+    }
+
+    // Markdown upload functionality
+    const form = document.getElementById('markdownUploadForm');
+    const fileInput = document.getElementById('markdownFile');
+    const previewMode = document.getElementById('previewMode');
+    const previewArea = document.getElementById('previewArea');
+    const previewContent = document.getElementById('previewContent');
+    const confirmImport = document.getElementById('confirmImport');
+    const cancelImport = document.getElementById('cancelImport');
+
+    let parsedTasks = [];
+
+    if (fileInput && previewMode && previewArea && previewContent) {
+        // File input change handler
+        fileInput.addEventListener('change', function() {
+            if (this.files.length > 0 && previewMode.checked) {
+                const file = this.files[0];
+                const reader = new FileReader();
+
+                reader.onload = function(e) {
+                    const content = e.target.result;
+                    parsedTasks = parseMarkdownTasks(content);
+                    displayPreview(parsedTasks);
+                    previewArea.style.display = 'block';
+                };
+
+                reader.readAsText(file);
+            }
+        });
+
+        // Preview mode toggle
+        previewMode.addEventListener('change', function() {
+            if (!this.checked) {
+                previewArea.style.display = 'none';
+            } else if (fileInput.files.length > 0) {
+                fileInput.dispatchEvent(new Event('change'));
+            }
+        });
+
+        // Form submission handler
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                if (previewMode.checked && previewArea.style.display === 'block') {
+                    e.preventDefault();
+                }
+            });
+        }
+
+        // Confirm import button
+        if (confirmImport) {
+            confirmImport.addEventListener('click', function() {
+                const hiddenForm = document.createElement('form');
+                hiddenForm.method = 'POST';
+                hiddenForm.action = form.action;
+                hiddenForm.style.display = 'none';
+
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrf_token';
+                csrfInput.value = document.querySelector('input[name="csrf_token"]').value;
+                hiddenForm.appendChild(csrfInput);
+
+                const tasksInput = document.createElement('input');
+                tasksInput.type = 'hidden';
+                tasksInput.name = 'parsed_tasks';
+                tasksInput.value = JSON.stringify(parsedTasks);
+                hiddenForm.appendChild(tasksInput);
+
+                const priorityInput = document.createElement('input');
+                priorityInput.type = 'hidden';
+                priorityInput.name = 'default_priority';
+                priorityInput.value = document.getElementById('defaultPriority').value;
+                hiddenForm.appendChild(priorityInput);
+
+                document.body.appendChild(hiddenForm);
+                hiddenForm.submit();
+            });
+        }
+
+        // Cancel import button
+        if (cancelImport) {
+            cancelImport.addEventListener('click', function() {
+                previewArea.style.display = 'none';
+                fileInput.value = '';
+                parsedTasks = [];
+            });
+        }
+    }
+
+    // Ensure the markdown collapse button is clickable
+    const markdownHeader = document.getElementById('markdownHeader');
+    if (markdownHeader) {
+        markdownHeader.addEventListener('click', function() {
+            const collapseElement = document.getElementById('markdownUploadCollapse');
+            if (collapseElement) {
+                const isCollapsed = collapseElement.classList.contains('show');
+                collapseElement.classList.toggle('show', !isCollapsed);
+            }
+        });
+    }
+
+    // Enhanced nested task management
+    initializeNestedTaskFeatures();
+
+    // Initialize auto-save
+    initializeAutoSave();
+});
+
+// Initialize subtask functionality
+function initializeSubtaskFunctionality() {
+    // Add click event listeners to all add-subtask buttons
+    const addSubtaskButtons = document.querySelectorAll('.add-subtask-btn');
+
+    addSubtaskButtons.forEach((button, index) => {
+        // Remove any existing onclick handlers and add new ones
+        button.removeAttribute('onclick');
+
+        // Remove any existing event listeners by cloning the button
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+
+        newButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Try multiple methods to find the task ID
+            let taskId = null;
+
+            // Method 1: Check for onclick attribute
+            const onclickAttr = this.getAttribute('onclick');
+            if (onclickAttr) {
+                const match = onclickAttr.match(/showAddSubtaskForm\((\d+)\)/);
+                if (match) {
+                    taskId = match[1];
+                }
+            }
+
+            // Method 2: Look for nearby toggle button
+            if (!taskId) {
+                const taskContainer = this.closest('.task-container');
+                if (taskContainer) {
+                    const toggleButton = taskContainer.querySelector('.subtask-toggle');
+                    if (toggleButton && toggleButton.id) {
+                        taskId = toggleButton.id.replace('toggle-', '');
+                    }
+                }
+            }
+
+            // Method 3: Look for nearby form
+            if (!taskId) {
+                const taskContainer = this.closest('.task-container');
+                if (taskContainer) {
+                    const subtaskForm = taskContainer.querySelector('.add-subtask-form');
+                    if (subtaskForm && subtaskForm.id) {
+                        taskId = subtaskForm.id.replace('add-subtask-form-', '');
+                    }
+                }
+            }
+
+            if (taskId) {
+                showAddSubtaskForm(taskId);
+            }
+        });
+    });
+
+    // Add click event listeners to subtask toggle buttons
+    const toggleButtons = document.querySelectorAll('.subtask-toggle');
+
+    toggleButtons.forEach(button => {
+        button.removeAttribute('onclick');
+
+        // Remove existing listeners by cloning
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+
+        newButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const taskId = this.id.replace('toggle-', '');
+            if (taskId) {
+                toggleSubtasks(taskId);
+            }
+        });
+    });
+
+    // Add form submission handlers for subtask forms
+    const subtaskForms = document.querySelectorAll('.add-subtask-form form');
+
+    subtaskForms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const formContainer = this.closest('.add-subtask-form');
+            const taskId = formContainer ? formContainer.id.replace('add-subtask-form-', '') : null;
+
+            if (taskId && !validateSubtaskForm(taskId)) {
+                e.preventDefault();
+                return false;
+            }
+        });
+    });
+
+    // Add escape key handler to close forms
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            // Hide all visible subtask forms
+            const visibleForms = document.querySelectorAll('.add-subtask-form[style*="block"]');
+            visibleForms.forEach(form => {
+                const taskId = form.id.replace('add-subtask-form-', '');
+                hideAddSubtaskForm(taskId);
+            });
+        }
+    });
+}
+
+// Enhanced markdown parsing with better error handling
+function parseMarkdownTasks(content) {
+    const lines = content.split('\n');
+    const tasks = [];
+    let currentMainTask = null;
+    let lineNumber = 0;
+
+    lines.forEach(line => {
+        lineNumber++;
+        const originalLine = line;
+        line = line.trim();
+        if (!line) return;
+
+        try {
+            if (line.startsWith('# ')) {
+                const title = line.substring(2).trim();
+                if (title) {
+                    currentMainTask = {
+                        title: title,
+                        completed: false,
+                        subtasks: [],
+                        lineNumber: lineNumber
+                    };
+                    tasks.push(currentMainTask);
+                }
+            }
+            else if (line.startsWith('## ')) {
+                const title = line.substring(3).trim();
+                if (title) {
+                    if (currentMainTask) {
+                        currentMainTask.subtasks.push({
+                            title: title,
+                            completed: false,
+                            lineNumber: lineNumber
+                        });
+                    } else {
+                        currentMainTask = {
+                            title: title,
+                            completed: false,
+                            subtasks: [],
+                            lineNumber: lineNumber
+                        };
+                        tasks.push(currentMainTask);
+                    }
+                }
+            }
+            else if (line.match(/^- \[[x ]\]/i)) {
+                const completed = line.toLowerCase().includes('[x]');
+                const title = line.substring(5).trim();
+
+                if (title) {
+                    const taskData = {
+                        title: title,
+                        completed: completed,
+                        lineNumber: lineNumber
+                    };
+
+                    if (currentMainTask) {
+                        currentMainTask.subtasks.push(taskData);
+                    } else {
+                        tasks.push({
+                            ...taskData,
+                            subtasks: []
+                        });
+                    }
+                }
+            }
+            else if (line.startsWith('- ') || line.startsWith('* ')) {
+                const title = line.substring(2).trim();
+
+                if (title) {
+                    const taskData = {
+                        title: title,
+                        completed: false,
+                        lineNumber: lineNumber
+                    };
+
+                    if (currentMainTask) {
+                        currentMainTask.subtasks.push(taskData);
+                    } else {
+                        tasks.push({
+                            ...taskData,
+                            subtasks: []
+                        });
+                    }
+                }
+            }
+        } catch (error) {
+            // Error handling without console logging
+        }
+    });
+
+    return tasks;
+}
+
+// Display preview of parsed tasks
+function displayPreview(tasks) {
+    let html = '';
+
+    if (tasks.length === 0) {
+        html = '<p class="text-muted">No tasks found in the markdown file.</p>';
+    } else {
+        tasks.forEach(task => {
+            html += `<div class="preview-task">
+                <strong>${task.completed ? '✓' : '○'} ${task.title}</strong>
+            </div>`;
+
+            task.subtasks.forEach(subtask => {
+                html += `<div class="preview-subtask">
+                    ${subtask.completed ? '✓' : '○'} ${subtask.title}
+                </div>`;
+            });
+        });
+
+        html += `<div class="mt-2"><small class="text-muted">
+            Found ${tasks.length} main task(s) with ${tasks.reduce((sum, task) => sum + task.subtasks.length, 0)} subtask(s)
+        </small></div>`;
+    }
+
+    const previewContent = document.getElementById('previewContent');
+    if (previewContent) {
+        previewContent.innerHTML = html;
+    }
+}
+
+// Additional nested task functionality
+function initializeNestedTaskFeatures() {
+    // Auto-collapse deeply nested tasks on page load
+    const deeplyNestedTasks = document.querySelectorAll('.task-container[data-depth="2"], .task-container[data-depth="3"]');
+    deeplyNestedTasks.forEach(task => {
+        const subtasksContainer = task.querySelector('.subtasks-container');
+        if (subtasksContainer) {
+            subtasksContainer.style.display = 'none';
+            const toggleIcon = task.querySelector('.subtask-toggle i');
+            if (toggleIcon) {
+                toggleIcon.className = 'fas fa-chevron-right';
+            }
+        }
+    });
+
+    // Add keyboard shortcuts for nested task management
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.key === 'Enter') {
+            // Ctrl+Enter to add subtask to focused task
+            const activeElement = document.activeElement;
+            const taskContainer = activeElement.closest('.task-container');
+            if (taskContainer) {
+                const taskId = taskContainer.querySelector('.subtask-toggle')?.id?.replace('toggle-', '');
+                if (taskId) {
+                    showAddSubtaskForm(taskId);
+                }
+            }
+        } else if (e.key === 'Escape') {
+            // Escape to cancel any open subtask forms
+            const openForms = document.querySelectorAll('.add-subtask-form[style*="block"]');
+            openForms.forEach(form => {
+                const taskId = form.id.replace('add-subtask-form-', '');
+                hideAddSubtaskForm(taskId);
+            });
+        }
+    });
+
+    // Add drag and drop functionality for reordering tasks
+    initializeDragAndDrop();
+}
+
+// Drag and drop functionality for task reordering
+function initializeDragAndDrop() {
+    const taskContainers = document.querySelectorAll('.task-container');
+
+    taskContainers.forEach(container => {
+        container.draggable = true;
+
+        container.addEventListener('dragstart', function(e) {
+            e.dataTransfer.setData('text/plain', container.dataset.taskId || '');
+            container.classList.add('dragging');
+        });
+
+        container.addEventListener('dragend', function(e) {
+            container.classList.remove('dragging');
+        });
+
+        container.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            container.classList.add('drag-over');
+        });
+
+        container.addEventListener('dragleave', function(e) {
+            container.classList.remove('drag-over');
+        });
+
+        container.addEventListener('drop', function(e) {
+            e.preventDefault();
+            container.classList.remove('drag-over');
+            const draggedTaskId = e.dataTransfer.getData('text/plain');
+            // Here you would implement the reordering logic
+        });
+    });
+}
+
+// Utility functions for task management
+function expandAllSubtasks() {
+    const subtasksContainers = document.querySelectorAll('.subtasks-container');
+    const toggleIcons = document.querySelectorAll('.subtask-toggle i');
+
+    subtasksContainers.forEach(container => {
+        container.style.display = 'block';
+    });
+
+    toggleIcons.forEach(icon => {
+        icon.className = 'fas fa-chevron-down';
+    });
+}
+
+function collapseAllSubtasks() {
+    const subtasksContainers = document.querySelectorAll('.subtasks-container');
+    const toggleIcons = document.querySelectorAll('.subtask-toggle i');
+
+    subtasksContainers.forEach(container => {
+        container.style.display = 'none';
+    });
+
+    toggleIcons.forEach(icon => {
+        icon.className = 'fas fa-chevron-right';
+    });
+}
+
+// Add this to your existing JavaScript section in the template
+
+document.addEventListener('DOMContentLoaded', function() {
+    // ... existing DOMContentLoaded code ...
+
+    // Initialize search functionality
+    initializeSearchFunctionality();
+
+    // Initialize client-side filtering (for better UX)
+    initializeClientSideFiltering();
+});
+
+// Initialize search functionality
+function initializeSearchFunctionality() {
+    const searchInput = document.getElementById('taskSearch');
+    const clearSearchBtn = searchInput?.parentElement.querySelector('button');
+
+    if (searchInput) {
+        // Add event listeners for search
+        searchInput.addEventListener('input', function(e) {
+            const query = e.target.value;
+            searchTasks(query);
+        });
+
+        searchInput.addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') {
+                const query = e.target.value;
+                searchTasks(query);
+            }
+        });
+
+        // Clear search functionality
+        if (clearSearchBtn) {
+            clearSearchBtn.addEventListener('click', function() {
+                searchInput.value = '';
+                searchTasks(''); // Clear search results
+                searchInput.focus();
+            });
+        }
+    }
+}
+
+// Enhanced search function with better highlighting
+function searchTasks(query) {
+    const taskContainers = document.querySelectorAll('.task-container');
+    const searchTerm = query.toLowerCase().trim();
+
+    taskContainers.forEach(container => {
+        const taskTitle = container.querySelector('.task-title, .card-body h6, .d-flex span');
+        const taskDescription = container.querySelector('.task-description, .text-muted');
+
+        if (taskTitle) {
+            let titleText = taskTitle.textContent.toLowerCase();
+            let descriptionText = taskDescription ? taskDescription.textContent.toLowerCase() : '';
+            let shouldShow = false;
+
+            // Remove previous highlights
+            removeHighlights(taskTitle);
+            if (taskDescription) removeHighlights(taskDescription);
+
+            if (searchTerm === '') {
+                // Show all tasks when search is empty
+                shouldShow = true;
+            } else {
+                // Check if search term matches title or description
+                if (titleText.includes(searchTerm) || descriptionText.includes(searchTerm)) {
+                    shouldShow = true;
+
+                    // Add highlighting
+                    if (titleText.includes(searchTerm)) {
+                        highlightText(taskTitle, searchTerm);
+                    }
+                    if (descriptionText.includes(searchTerm) && taskDescription) {
+                        highlightText(taskDescription, searchTerm);
+                    }
+                }
+            }
+
+            // Show/hide the entire task container
+            if (shouldShow) {
+                container.style.display = 'block';
+                // Also show parent containers if this is a subtask
+                let parentContainer = container.closest('.subtasks-container');
+                while (parentContainer) {
+                    parentContainer.style.display = 'block';
+                    const parentTask = parentContainer.previousElementSibling;
+                    if (parentTask && parentTask.classList.contains('task-container')) {
+                        parentTask.style.display = 'block';
+                    }
+                    parentContainer = parentContainer.parentElement.closest('.subtasks-container');
+                }
+            } else {
+                container.style.display = 'none';
+            }
+        }
+    });
+
+    // Update search results count
+    updateSearchResultsCount(query);
+}
+
+// Helper function to highlight search terms
+function highlightText(element, searchTerm) {
+    if (!element || !searchTerm) return;
+
+    const originalText = element.textContent;
+    const regex = new RegExp(`(${escapeRegExp(searchTerm)})`, 'gi');
+    const highlightedText = originalText.replace(regex, '<span class="task-highlight">$1</span>');
+
+    if (highlightedText !== originalText) {
+        element.innerHTML = highlightedText;
+    }
+}
+
+// Helper function to remove highlights
+function removeHighlights(element) {
+    if (!element) return;
+
+    const highlights = element.querySelectorAll('.task-highlight');
+    highlights.forEach(highlight => {
+        const parent = highlight.parentNode;
+        parent.replaceChild(document.createTextNode(highlight.textContent), highlight);
+        parent.normalize();
+    });
+}
+
+// Helper function to escape regex special characters
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Update search results count
+function updateSearchResultsCount(query) {
+    const visibleTasks = document.querySelectorAll('.task-container[style*="block"], .task-container:not([style*="none"])');
+    const totalTasks = document.querySelectorAll('.task-container');
+
+    // You can add a results counter here if needed
+    // For example, update a status message showing "X of Y tasks shown"
+}
+
+// Initialize client-side filtering for better UX
+function initializeClientSideFiltering() {
+    // Get current filter state from URL params or form values
+    const urlParams = new URLSearchParams(window.location.search);
+    const showCompleted = urlParams.get('show_completed') || 'all';
+    const filterBy = urlParams.get('filter_by') || '';
+
+    // Apply filters immediately on page load
+    applyClientSideFilters(showCompleted, filterBy);
+
+    // Add event listeners to filter form elements
+    const showCompletedSelect = document.getElementById('show_completed');
+    const filterBySelect = document.getElementById('filter_by');
+
+    if (showCompletedSelect) {
+        showCompletedSelect.addEventListener('change', function() {
+            const showCompleted = this.value;
+            const filterBy = filterBySelect ? filterBySelect.value : '';
+            applyClientSideFilters(showCompleted, filterBy);
+        });
+    }
+
+    if (filterBySelect) {
+        filterBySelect.addEventListener('change', function() {
+            const filterBy = this.value;
+            const showCompleted = showCompletedSelect ? showCompletedSelect.value : 'all';
+            applyClientSideFilters(showCompleted, filterBy);
+        });
+    }
+}
+
+// Apply client-side filters
+function applyClientSideFilters(showCompleted, filterBy) {
+    const taskContainers = document.querySelectorAll('.task-container');
+
+    taskContainers.forEach(container => {
+        let shouldShow = true;
+
+        // Check completion status
+        const isCompleted = container.classList.contains('task-completed') ||
+                           container.querySelector('.task-completed') !== null ||
+                           container.querySelector('input[type="checkbox"]:checked') !== null;
+
+        if (showCompleted === 'true' && !isCompleted) {
+            shouldShow = false;
+        } else if (showCompleted === 'false' && isCompleted) {
+            shouldShow = false;
+        }
+
+        // Check priority filter
+        if (filterBy && shouldShow) {
+            const priorityBadge = container.querySelector('.priority-badge, .badge');
+            let taskPriority = null;
+
+            if (priorityBadge) {
+                if (priorityBadge.classList.contains('priority-1') || priorityBadge.textContent.toLowerCase().includes('low')) {
+                    taskPriority = '1';
+                } else if (priorityBadge.classList.contains('priority-2') || priorityBadge.textContent.toLowerCase().includes('medium')) {
+                    taskPriority = '2';
+                } else if (priorityBadge.classList.contains('priority-3') || priorityBadge.textContent.toLowerCase().includes('high')) {
+                    taskPriority = '3';
+                }
+            }
+
+            if (taskPriority !== filterBy) {
+                shouldShow = false;
+            }
+        }
+
+        // Apply visibility
+        if (shouldShow) {
+            container.style.display = 'block';
+        } else {
+            container.style.display = 'none';
+        }
+    });
+
+    // Update task count after filtering
+    updateTaskCount();
+}
+
+// Update task count display
+function updateTaskCount() {
+    const visibleTasks = document.querySelectorAll('.task-container:not([style*="none"])');
+    const taskCountBadge = document.querySelector('.card-header .badge');
+
+    if (taskCountBadge) {
+        taskCountBadge.textContent = visibleTasks.length;
+    }
+}
+
+// Clear search function
+function clearSearch() {
+    const searchInput = document.getElementById('taskSearch');
+    if (searchInput) {
+        searchInput.value = '';
+        searchTasks('');
+        searchInput.focus();
+    }
+}
+
+// Enhanced task search with category filtering
+function searchTasksAdvanced(query, category = 'all') {
+    const taskContainers = document.querySelectorAll('.task-container');
+    const searchTerm = query.toLowerCase().trim();
+
+    taskContainers.forEach(container => {
+        let shouldShow = false;
+
+        // Get task elements
+        const taskTitle = container.querySelector('.task-title, .card-body h6, .d-flex span');
+        const taskDescription = container.querySelector('.task-description, .text-muted');
+        const isCompleted = container.classList.contains('task-completed') ||
+                           container.querySelector('input[type="checkbox"]:checked') !== null;
+
+        // Clear previous highlights
+        if (taskTitle) removeHighlights(taskTitle);
+        if (taskDescription) removeHighlights(taskDescription);
+
+        if (searchTerm === '') {
+            shouldShow = true;
+        } else if (taskTitle) {
+            const titleText = taskTitle.textContent.toLowerCase();
+            const descriptionText = taskDescription ? taskDescription.textContent.toLowerCase() : '';
+
+            // Check if search matches
+            if (titleText.includes(searchTerm) || descriptionText.includes(searchTerm)) {
+                shouldShow = true;
+
+                // Add highlighting
+                if (titleText.includes(searchTerm)) {
+                    highlightText(taskTitle, searchTerm);
+                }
+                if (descriptionText.includes(searchTerm) && taskDescription) {
+                    highlightText(taskDescription, searchTerm);
+                }
+            }
+        }
+
+        // Apply category filter
+        if (shouldShow && category !== 'all') {
+            if (category === 'completed' && !isCompleted) {
+                shouldShow = false;
+            } else if (category === 'incomplete' && isCompleted) {
+                shouldShow = false;
+            }
+        }
+
+        // Show/hide task
+        container.style.display = shouldShow ? 'block' : 'none';
+    });
+}
+
+// Auto-save functionality for forms
+function initializeAutoSave() {
+    const forms = document.querySelectorAll('form');
+
+    forms.forEach(form => {
+        const inputs = form.querySelectorAll('input[type="text"], textarea');
+
+        inputs.forEach(input => {
+            input.addEventListener('input', function() {
+                const formData = new FormData(form);
+                const formId = form.id || 'unnamed-form';
+
+                // Save to sessionStorage (with fallback for environments that don't support it)
+                try {
+                    const savedData = {};
+                    for (let [key, value] of formData.entries()) {
+                        savedData[key] = value;
+                    }
+                    sessionStorage.setItem(`autosave-${formId}`, JSON.stringify(savedData));
+                } catch (e) {
+                    // Auto-save not available in this environment
+                }
+            });
+        });
+    });
+}
+</script>
+{% endblock %}
