@@ -145,9 +145,6 @@
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <textarea name="description" class="form-control" placeholder="Optional description..." rows="1" style="display: none;"></textarea>
-                        </div>
-                        <div class="col-12">
                             <button type="submit" class="btn btn-success">
                                 <i class="fas fa-plus icon-pad"></i>Add Task
                             </button>
@@ -437,6 +434,11 @@
     color: #e0e0e0;
 }
 
+.dark-mode .badge.bg-light.text-dark {
+    background-color: #555 !important; /* dark gray background */
+    color: #fff !important;            /* white text */
+}
+
 .dark-mode .card {
     background-color: #2d2d2d;
     border-color: #404040;
@@ -653,95 +655,68 @@ function collapseAllSubtasks() {
 
 function parseMarkdownTasks(content) {
     const lines = content.split('\n');
+    const stack = []; // Stack of heading tasks by level
     const tasks = [];
-    let currentMainTask = null;
-    let lineNumber = 0;
 
-    lines.forEach(line => {
-        lineNumber++;
-        const originalLine = line;
-        line = line.trim();
-        if (!line) return;
+    lines.forEach((rawLine, index) => {
+        const line = rawLine.replace(/\t/g, '  ').trimEnd();
+        if (!line.trim()) return;
 
-        try {
-            // Main task heading (# Title)
-            if (line.startsWith('# ')) {
-                const title = line.substring(2).trim();
-                if (title) {
-                    currentMainTask = {
-                        title: title,
-                        completed: false,
-                        subtasks: [],
-                        lineNumber: lineNumber
-                    };
-                    tasks.push(currentMainTask);
+        const lineNumber = index + 1;
+
+        // Heading (e.g., #, ##, ###)
+        const headingMatch = line.match(/^(#{1,6})\s+(.*)/);
+        if (headingMatch) {
+            const level = headingMatch[1].length;
+            const title = headingMatch[2].trim();
+            const task = {
+                title,
+                completed: false,
+                subtasks: [],
+                lineNumber
+            };
+
+            // Trim stack to one level above
+            stack.length = level - 1;
+
+            if (stack.length === 0) {
+                tasks.push(task);
+            } else {
+                stack[stack.length - 1].subtasks.push(task);
+            }
+
+            stack[level - 1] = task;
+            return;
+        }
+
+        // Checkbox Task (- [ ] or - [x])
+        const checkboxMatch = line.match(/^(\s*)- \[( |x|X)\] (.*)/);
+        if (checkboxMatch) {
+            const completed = checkboxMatch[2].toLowerCase() === 'x';
+            const title = checkboxMatch[3].trim();
+            const task = {
+                title,
+                completed,
+                subtasks: [],
+                lineNumber
+            };
+
+            // Find the most recent heading task from the stack
+            for (let i = stack.length - 1; i >= 0; i--) {
+                if (stack[i]) {
+                    stack[i].subtasks.push(task);
+                    return;
                 }
             }
-            // Subtask heading (## Title)
-            else if (line.startsWith('## ')) {
-                const title = line.substring(3).trim();
-                if (title) {
-                    if (currentMainTask) {
-                        currentMainTask.subtasks.push({
-                            title: title,
-                            completed: false,
-                            lineNumber: lineNumber
-                        });
-                    } else {
-                        currentMainTask = {
-                            title: title,
-                            completed: false,
-                            subtasks: [],
-                            lineNumber: lineNumber
-                        };
-                        tasks.push(currentMainTask);
-                    }
-                }
-            }
-            // Checkbox list items (- [x] or - [ ])
-            else if (line.match(/^- \[[x ]\]/i)) {
-                const completed = line.toLowerCase().includes('[x]');
-                const title = line.substring(5).trim();
 
-                if (title) {
-                    const taskData = {
-                        title: title,
-                        completed: completed,
-                        lineNumber: lineNumber
-                    };
-
-                    if (currentMainTask) {
-                        currentMainTask.subtasks.push(taskData);
-                    } else {
-                        tasks.push({ ...taskData, subtasks: [] });
-                    }
-                }
-            }
-            // Regular list items (- or *)
-            else if (line.startsWith('- ') || line.startsWith('* ')) {
-                const title = line.substring(2).trim();
-
-                if (title) {
-                    const taskData = {
-                        title: title,
-                        completed: false,
-                        lineNumber: lineNumber
-                    };
-
-                    if (currentMainTask) {
-                        currentMainTask.subtasks.push(taskData);
-                    } else {
-                        tasks.push({ ...taskData, subtasks: [] });
-                    }
-                }
-            }
-        } catch (error) {
-            // Silently handle parsing errors
+            // If no heading above, treat it as top-level
+            tasks.push(task);
         }
     });
 
     return tasks;
 }
+
 
 function displayPreview(tasks) {
     let html = '';
