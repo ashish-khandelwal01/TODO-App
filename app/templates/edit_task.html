@@ -3,31 +3,350 @@
 {% block title %}Edit Task{% endblock %}
 
 {% block content %}
-<div class="container">
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <a class="navbar-brand" href="#">To-Do List</a>
-        <div class="collapse navbar-collapse">
-            <ul class="navbar-nav ml-auto">
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('main.logout') }}">Logout</a>
-                </li>
-            </ul>
+<div class="container-fluid">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+        <div class="container-fluid">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse d-flex justify-content-between" id="navbarNav">
+                <a class="navbar-brand" href="{{ url_for('main.index') }}">
+                    <i class="fas fa-tasks icon-pad"></i>To-Do List
+                </a>
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('main.logout') }}">
+                            <i class="fas fa-sign-out-alt icon-pad"></i>Logout
+                        </a>
+                    </li>
+                </ul>
+            </div>
         </div>
     </nav>
-    
-    <h1 class="mt-5">Edit Task</h1>
-    
-    <form action="{{ url_for('main.edit', task_id=task.id) }}" method="POST" class="form-inline my-3">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="text" name="title" class="form-control mr-2" value="{{ task.title }}" placeholder="Task Title">
-        <select name="priority" class="form-control mr-2" id="priority-select">
-            <option value="1" {% if task.priority == 1 %}selected{% endif %} class="priority-low">Low</option>
-            <option value="2" {% if task.priority == 2 %}selected{% endif %} class="priority-medium">Medium</option>
-            <option value="3" {% if task.priority == 3 %}selected{% endif %} class="priority-high">High</option>
-        </select>
-        <button type="submit" class="btn btn-primary">Save</button>
-    </form>
-    
-    <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Cancel</a>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <!-- Page Header -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="card-title mb-0">
+                        <i class="fas fa-edit icon-pad"></i>Edit Task
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle icon-pad"></i>
+                        Update your task details below. All changes will be saved when you click the Save button.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Edit Task Form -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-pencil-alt icon-pad"></i>Task Details
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('main.edit', task_id=task.id) }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label for="task-title" class="form-label">Task Title</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-tasks"></i>
+                                    </span>
+                                    <input type="text"
+                                           name="title"
+                                           id="task-title"
+                                           class="form-control"
+                                           value="{{ task.title }}"
+                                           placeholder="Enter task title..."
+                                           required>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="priority-select" class="form-label">Priority Level</label>
+                                <select name="priority" class="form-select" id="priority-select">
+                                    <option value="1" {% if task.priority == 1 %}selected{% endif %} class="text-success">
+                                        <i class="fas fa-circle"></i> Low Priority
+                                    </option>
+                                    <option value="2" {% if task.priority == 2 %}selected{% endif %} class="text-warning">
+                                        <i class="fas fa-circle"></i> Medium Priority
+                                    </option>
+                                    <option value="3" {% if task.priority == 3 %}selected{% endif %} class="text-danger">
+                                        <i class="fas fa-circle"></i> High Priority
+                                    </option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Priority Preview -->
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div class="alert alert-light">
+                                    <strong>Current Priority:</strong>
+                                    <span id="priority-preview" class="badge ms-2
+                                        {% if task.priority == 1 %}priority-1
+                                        {% elif task.priority == 2 %}priority-2
+                                        {% elif task.priority == 3 %}priority-3
+                                        {% endif %}">
+                                        {% if task.priority == 1 %}Low Priority
+                                        {% elif task.priority == 2 %}Medium Priority
+                                        {% elif task.priority == 3 %}High Priority
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <div class="d-flex gap-2 justify-content-between">
+                                    <div>
+                                        <button type="submit" class="btn btn-success">
+                                            <i class="fas fa-save icon-pad"></i>Save Changes
+                                        </button>
+                                        <a href="{{ url_for('main.index') }}" class="btn btn-secondary">
+                                            <i class="fas fa-times icon-pad"></i>Cancel
+                                        </a>
+                                    </div>
+                                    <div>
+                                        <a href="{{ url_for('main.index') }}" class="btn btn-outline-primary">
+                                            <i class="fas fa-arrow-left icon-pad"></i>Back to Tasks
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Task Information -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-info-circle icon-pad"></i>Task Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Original Title:</h6>
+                            <p class="fw-bold">{{ task.title }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Current Status:</h6>
+                            <p>
+                                {% if task.completed %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check-circle"></i> Completed
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-warning">
+                                        <i class="fas fa-clock"></i> In Progress
+                                    </span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<style>
+/* Icon padding utility */
+.icon-pad {
+    margin-right: 0.5rem;
+}
+
+/* Priority badges */
+.priority-badge {
+    font-size: 0.75em;
+}
+
+.priority-1 {
+    background-color: #28a745 !important;
+    color: white;
+}
+
+.priority-2 {
+    background-color: #ffc107 !important;
+    color: #212529;
+}
+
+.priority-3 {
+    background-color: #dc3545 !important;
+    color: white;
+}
+
+/* Form styling improvements */
+.form-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.5rem;
+}
+
+.input-group-text {
+    background-color: #f8f9fa;
+    border-color: #ced4da;
+    color: #6c757d;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Button improvements */
+.btn {
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+/* Card styling */
+.card {
+    border: none;
+    border-radius: 0.5rem;
+}
+
+.card-header {
+    border-bottom: 1px solid #dee2e6;
+    font-weight: 600;
+}
+
+/* Dark mode styles */
+.dark-mode {
+    background-color: #1a1a1a;
+    color: #e0e0e0;
+}
+
+.dark-mode .card {
+    background-color: #2d2d2d;
+    border-color: #404040;
+    color: #e0e0e0;
+}
+
+.dark-mode .card-header {
+    background-color: #3a3a3a !important;
+    border-bottom-color: #404040;
+    color: #e0e0e0 !important;
+}
+
+.dark-mode .bg-light {
+    background-color: #3a3a3a !important;
+}
+
+.dark-mode .form-control,
+.dark-mode .form-select {
+    background-color: #404040;
+    border-color: #555;
+    color: #e0e0e0;
+}
+
+.dark-mode .form-control:focus,
+.dark-mode .form-select:focus {
+    background-color: #404040;
+    border-color: #0d6efd;
+    color: #e0e0e0;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.dark-mode .input-group-text {
+    background-color: #404040;
+    border-color: #555;
+    color: #e0e0e0;
+}
+
+.dark-mode .alert-light {
+    background-color: #404040;
+    border-color: #555;
+    color: #e0e0e0;
+}
+
+.dark-mode .form-label {
+    color: #e0e0e0;
+}
+
+.dark-mode .text-muted {
+    color: #adb5bd !important;
+}
+</style>
+
+{% endblock %}
+
+{% block custom_js %}
+<script>
+// Priority preview update
+document.addEventListener('DOMContentLoaded', function() {
+    const prioritySelect = document.getElementById('priority-select');
+    const priorityPreview = document.getElementById('priority-preview');
+
+    if (prioritySelect && priorityPreview) {
+        prioritySelect.addEventListener('change', function() {
+            const selectedValue = this.value;
+            const selectedText = this.options[this.selectedIndex].text.trim();
+
+            // Update badge classes
+            priorityPreview.className = 'badge ms-2';
+
+            if (selectedValue === '1') {
+                priorityPreview.classList.add('priority-1');
+                priorityPreview.textContent = 'Low Priority';
+            } else if (selectedValue === '2') {
+                priorityPreview.classList.add('priority-2');
+                priorityPreview.textContent = 'Medium Priority';
+            } else if (selectedValue === '3') {
+                priorityPreview.classList.add('priority-3');
+                priorityPreview.textContent = 'High Priority';
+            }
+        });
+    }
+
+    // Form validation
+    const form = document.querySelector('form');
+    const titleInput = document.getElementById('task-title');
+
+    if (form && titleInput) {
+        form.addEventListener('submit', function(e) {
+            const title = titleInput.value.trim();
+
+            if (!title) {
+                e.preventDefault();
+                alert('Please enter a task title');
+                titleInput.focus();
+                return false;
+            }
+
+            if (title.length > 200) {
+                e.preventDefault();
+                alert('Task title is too long. Please keep it under 200 characters.');
+                titleInput.focus();
+                return false;
+            }
+        });
+    }
+
+    // Auto-focus on title input
+    if (titleInput) {
+        titleInput.focus();
+        titleInput.select();
+    }
+});
+</script>
 {% endblock %}
