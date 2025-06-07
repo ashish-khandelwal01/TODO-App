@@ -1,2 +1,2 @@
 #!/bin/bash
-python -m uvicorn run:app --host 0.0.0.0 --port $PORT
+gunicorn run:app --bind 0.0.0.0:$PORT
