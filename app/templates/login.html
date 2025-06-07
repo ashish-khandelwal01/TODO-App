@@ -3,32 +3,347 @@
 {% block title %}Login{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h2 class="mt-5">Login</h2>
-    
-    <form method="POST">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="form-group">
-            <label for="username">Username</label>
-            <input type="text" class="form-control" id="username" name="username" required>
-        </div>
-        <div class="form-group">
-            <label for="password">Password</label>
-            <input type="password" class="form-control" id="password" name="password" required>
-        </div>
-        
-        {% if error_message %}
-            <div class="alert alert-danger" role="alert">
-                {{ error_message }}
+<div class="container-fluid">
+    <!-- Navigation -->
+   <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+        <div class="container-fluid">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse d-flex justify-content-between" id="navbarNav">
+                <a class="navbar-brand" href="{{ url_for('main.index') }}">
+                    <i class="fas fa-tasks icon-pad"></i>To-Do List
+                </a>
             </div>
-        {% endif %}
-        
-        <div>
-            <a href="{{ url_for('main.forgot_password') }}" class="btn btn-link">Forgot Password?</a>
         </div>
-        
-        <button type="submit" class="btn btn-primary">Login</button>
-        <a href="{{ url_for('main.register') }}" class="btn btn-secondary">Register</a>
-    </form>
+    </nav>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-4 col-md-6 col-sm-8">
+            <!-- Login Card -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-sign-in-alt icon-pad"></i>Login to Your Account
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if error_message %}
+                        <div class="alert alert-danger" role="alert">
+                            <i class="fas fa-exclamation-triangle icon-pad"></i>
+                            {{ error_message }}
+                        </div>
+                    {% endif %}
+
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <div class="mb-3">
+                            <label for="username" class="form-label">
+                                <i class="fas fa-user icon-pad"></i>Username
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-user text-muted"></i>
+                                </span>
+                                <input type="text" class="form-control" id="username" name="username"
+                                       placeholder="Enter your username" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="password" class="form-label">
+                                <i class="fas fa-lock icon-pad"></i>Password
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-lock text-muted"></i>
+                                </span>
+                                <input type="password" class="form-control" id="password" name="password"
+                                       placeholder="Enter your password" required>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 mb-3">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-sign-in-alt icon-pad"></i>Login
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card-footer bg-light">
+                    <div class="row">
+                        <div class="col-6">
+                            <a href="{{ url_for('main.forgot_password') }}" class="btn btn-link btn-sm p-0">
+                                <i class="fas fa-question-circle icon-pad"></i>Forgot Password?
+                            </a>
+                        </div>
+                        <div class="col-6 text-end">
+                            <a href="{{ url_for('main.register') }}" class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-user-plus icon-pad"></i>Register
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Info Card -->
+            <div class="card shadow-sm mt-4">
+                <div class="card-body text-center">
+                    <h6 class="card-title">
+                        <i class="fas fa-info-circle icon-pad text-info"></i>Welcome Back!
+                    </h6>
+                    <p class="card-text text-muted mb-0">
+                        <small>Access your tasks and stay organized with our powerful task management system.</small>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Dark Mode Toggle -->
+            <div class="card shadow-sm mt-3">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span><i class="fas fa-moon icon-pad"></i>Dark Mode</span>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="darkModeToggle">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<style>
+/* Icon padding utility */
+.icon-pad {
+    margin-right: 0.5rem;
+}
+
+/* Input group styling */
+.input-group-text {
+    background-color: #f8f9fa;
+    border-right: none;
+}
+
+.input-group .form-control {
+    border-left: none;
+}
+
+.input-group .form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Card hover effects */
+.card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+    transition: box-shadow 0.2s ease;
+}
+
+/* Button styling */
+.btn {
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+/* Dark mode styles */
+.dark-mode {
+    background-color: #1a1a1a;
+    color: #e0e0e0;
+}
+
+.dark-mode .card {
+    background-color: #2d2d2d;
+    border-color: #404040;
+    color: #e0e0e0;
+}
+
+.dark-mode .card-header {
+    background-color: #3a3a3a !important;
+    border-bottom-color: #404040;
+    color: #e0e0e0 !important;
+}
+
+.dark-mode .card-footer {
+    background-color: #3a3a3a !important;
+    border-top-color: #404040;
+}
+
+.dark-mode .form-control {
+    background-color: #404040;
+    border-color: #555;
+    color: #e0e0e0;
+}
+
+.dark-mode .form-control:focus {
+    background-color: #404040;
+    border-color: #0d6efd;
+    color: #e0e0e0;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.dark-mode .input-group-text {
+    background-color: #404040;
+    border-color: #555;
+    color: #e0e0e0;
+}
+
+.dark-mode .alert-danger {
+    background-color: #4a2c2c;
+    border-color: #6b2c2c;
+    color: #f8d7da;
+}
+
+.dark-mode .text-muted {
+    color: #adb5bd !important;
+}
+
+/* Loading animation for form submission */
+.btn.loading {
+    position: relative;
+    color: transparent;
+}
+
+.btn.loading::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-left: -8px;
+    margin-top: -8px;
+    border: 2px solid transparent;
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
+
+{% endblock %}
+
+{% block custom_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize dark mode
+    initializeDarkMode();
+
+    // Add form submission loading state
+    initializeFormSubmission();
+
+    // Focus on first input
+    const usernameInput = document.getElementById('username');
+    if (usernameInput) {
+        usernameInput.focus();
+    }
+});
+
+function initializeDarkMode() {
+    const darkModeToggle = document.getElementById('darkModeToggle');
+    const body = document.body;
+
+    // Check for saved dark mode preference
+    let isDarkMode = false;
+    try {
+        // Using memory storage instead of sessionStorage for Claude environment
+        isDarkMode = window.darkModeState === 'true';
+    } catch (e) {
+        // Fallback for environments without storage
+    }
+
+    if (isDarkMode) {
+        body.classList.add('dark-mode');
+        if (darkModeToggle) darkModeToggle.checked = true;
+    }
+
+    if (darkModeToggle) {
+        darkModeToggle.addEventListener('change', function() {
+            if (this.checked) {
+                body.classList.add('dark-mode');
+                try {
+                    window.darkModeState = 'true';
+                } catch (e) {
+                    // Fallback
+                }
+            } else {
+                body.classList.remove('dark-mode');
+                try {
+                    window.darkModeState = 'false';
+                } catch (e) {
+                    // Fallback
+                }
+            }
+        });
+    }
+}
+
+function initializeFormSubmission() {
+    const loginForm = document.querySelector('form');
+    const submitButton = document.querySelector('button[type="submit"]');
+
+    if (loginForm && submitButton) {
+        loginForm.addEventListener('submit', function() {
+            // Add loading state to button
+            submitButton.classList.add('loading');
+            submitButton.disabled = true;
+
+            // Remove loading state after 5 seconds (fallback)
+            setTimeout(function() {
+                submitButton.classList.remove('loading');
+                submitButton.disabled = false;
+            }, 5000);
+        });
+    }
+}
+
+// Form validation
+function validateForm() {
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value.trim();
+
+    if (!username || !password) {
+        showAlert('Please fill in all fields', 'warning');
+        return false;
+    }
+
+    return true;
+}
+
+function showAlert(message, type = 'info') {
+    // Remove existing alerts
+    const existingAlerts = document.querySelectorAll('.alert:not(.alert-danger)');
+    existingAlerts.forEach(alert => alert.remove());
+
+    // Create new alert
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        <i class="fas fa-info-circle icon-pad"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    // Insert before form
+    const form = document.querySelector('form');
+    form.parentNode.insertBefore(alertDiv, form);
+
+    // Auto-dismiss after 3 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 3000);
+}
+</script>
 {% endblock %}

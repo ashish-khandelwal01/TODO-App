@@ -4,186 +4,845 @@
 
 {% block extra_css %}
 <style>
+    /* Icon padding utility */
+    .icon-pad {
+        margin-right: 0.5rem !important;
+        display: inline-block;
+        width: auto;
+    }
+
+    /* FIXED: Ensure icons in different contexts maintain proper spacing */
+    .navbar-brand .icon-pad,
+    .card-title .icon-pad,
+    .form-label .icon-pad,
+    .btn .icon-pad,
+    .alert .icon-pad {
+        margin-right: 0.5rem !important;
+    }
+
+    /* FIXED: Specific fixes for FontAwesome icons */
+    .fas.icon-pad,
+    .far.icon-pad,
+    .fab.icon-pad {
+        margin-right: 0.5rem !important;
+        vertical-align: baseline;
+    }
+
+    /* Custom tooltip styling to match todo list theme */
     .custom-tooltip .tooltip-inner {
-        background-color: #ffcc00;
-        color: #000;
+        background-color: #ffc107;
+        color: #212529;
         font-weight: bold;
         font-size: 1.1em;
         border-radius: 10px;
         padding: 10px;
-        border: 2px solid #000;
-        opacity: 0;
-        transition: opacity 0.3s ease-in-out;
-    }
-    .custom-tooltip.show .tooltip-inner {
-        opacity: 1;
+        border: 2px solid #dee2e6;
+        opacity: 1 !important;
     }
     .custom-tooltip .arrow::before {
-        border-right-color: #ffcc00;
+        border-right-color: #ffc107;
     }
     .custom-tooltip .tooltip-inner i {
         margin-right: 5px;
+    }
+
+    /* Form styling improvements */
+    .form-control:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        transition: all 0.2s ease;
+    }
+
+    .form-label {
+        font-weight: 500;
+        color: #495057;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Card hover effects */
+    .card {
+        transition: all 0.3s ease;
+        border: 1px solid #dee2e6;
+    }
+
+    .card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+
+    /* Button styling */
+    .btn {
+        border-radius: 0.375rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    /* Dark mode styles */
+    .dark-mode {
+        background-color: #1a1a1a;
+        color: #e0e0e0;
+    }
+
+    .dark-mode .card {
+        background-color: #2d2d2d;
+        border-color: #404040;
+        color: #e0e0e0;
+    }
+
+    .dark-mode .card-header {
+        background-color: #3a3a3a !important;
+        border-bottom-color: #404040;
+        color: #e0e0e0 !important;
+    }
+
+    .dark-mode .form-control,
+    .dark-mode .form-select {
+        background-color: #404040;
+        border-color: #555;
+        color: #e0e0e0;
+    }
+
+    .dark-mode .form-control:focus,
+    .dark-mode .form-select:focus {
+        background-color: #404040;
+        border-color: #0d6efd;
+        color: #e0e0e0;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+
+    .dark-mode .form-label {
+        color: #e0e0e0;
+    }
+
+    .dark-mode .text-muted {
+        color: #adb5bd !important;
+    }
+
+    /* Loading animation */
+    .loading-spinner {
+        display: none;
+        width: 1rem;
+        height: 1rem;
+        border: 2px solid transparent;
+        border-top: 2px solid currentColor;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-left: 0.5rem;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Password strength indicator - FIXED */
+    .password-strength {
+        height: 5px;
+        border-radius: 3px;
+        margin-top: 0.25rem;
+        transition: all 0.3s ease;
+        width: 0%;
+        background-color: #e9ecef;
+    }
+
+    .strength-weak {
+        background-color: #dc3545;
+        width: 33%;
+    }
+    .strength-medium {
+        background-color: #ffc107;
+        width: 66%;
+    }
+    .strength-strong {
+        background-color: #28a745;
+        width: 100%;
+    }
+
+    /* Password feedback messages - NEW */
+    .password-feedback {
+        margin-top: 0.5rem;
+        padding: 0.5rem;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        display: none;
+    }
+
+    .password-feedback.show {
+        display: block;
+    }
+
+    .password-feedback.error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+
+    .password-feedback.success {
+        background-color: #d1edff;
+        color: #0c5460;
+        border: 1px solid #b8daff;
+    }
+
+    .password-feedback.info {
+        background-color: #d1ecf1;
+        color: #0c5460;
+        border: 1px solid #bee5eb;
+    }
+
+    .password-feedback.warning {
+        background-color: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeaa7;
+    }
+
+    .dark-mode .password-feedback.error {
+        background-color: #2d1b1b;
+        color: #f8d7da;
+        border-color: #721c24;
+    }
+
+    .dark-mode .password-feedback.success {
+        background-color: #1b2d2d;
+        color: #d1edff;
+        border-color: #0c5460;
+    }
+
+    .dark-mode .password-feedback.info {
+        background-color: #1b252d;
+        color: #d1ecf1;
+        border-color: #0c5460;
+    }
+
+    .dark-mode .password-feedback.warning {
+        background-color: #2d2a1b;
+        color: #fff3cd;
+        border-color: #856404;
+    }
+
+    /* Form section styling */
+    .form-section {
+        margin-bottom: 2rem;
+    }
+
+    .section-divider {
+        border: none;
+        height: 1px;
+        background: linear-gradient(to right, transparent, #dee2e6, transparent);
+        margin: 2rem 0;
+    }
+
+    /* Responsive improvements */
+    @media (max-width: 768px) {
+        .container-fluid {
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+
+        .card {
+            margin-bottom: 1rem;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container">
-    <h2 class="mt-5">Register</h2>
-    <form method="POST" action="{{ url_for('main.register') }}" onsubmit="validateForm(event)">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="form-group">
-            <label for="username">Username</label>
-            <input type="text" class="form-control" id="username" name="username" required>
+<div class="container-fluid">
+    <!-- Navigation Header -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-user-plus icon-pad"></i>Create Account
+            </a>
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <div class="d-flex align-items-center">
+                        <span class="text-white me-3"><i class="fas fa-moon icon-pad"></i>Dark Mode</span>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="darkModeToggle">
+                        </div>
+                    </div>
+                </li>
+            </ul>
         </div>
-        <div class="form-group">
-            <label for="email">Email</label>
-            <input type="text" class="form-control" id="email" name="email" onblur="validateEmail()" required>
+    </nav>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-6">
+            <!-- Registration Form Card -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-user-plus icon-pad"></i>Register New Account
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    <!-- Information Alert -->
+                    <div class="alert alert-info mb-4">
+                        <i class="fas fa-info-circle icon-pad"></i>
+                        <strong>Account Setup:</strong> Fill in all required fields to create your account. Your password must meet security requirements.
+                    </div>
+
+                    <form method="POST" action="#" id="registrationForm">
+                        <!-- Personal Information Section -->
+                        <div class="form-section">
+                            <h6 class="text-primary mb-3">
+                                <i class="fas fa-user icon-pad"></i>Personal Information
+                            </h6>
+
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="username" class="form-label">
+                                        <i class="fas fa-user icon-pad"></i>Username *
+                                    </label>
+                                    <input type="text" class="form-control" autocomplete="new-password" id="username" name="username" required
+                                           placeholder="Choose a unique username">
+                                    <div class="form-text">Must be unique and at least 3 characters long</div>
+                                    <div class="password-feedback" id="usernameFeedback"></div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="email" class="form-label">
+                                        <i class="fas fa-envelope icon-pad"></i>Email Address *
+                                    </label>
+                                    <input type="email" class="form-control" id="email" name="email" required
+                                           placeholder="your.email@example.com">
+                                    <div class="form-text">We'll use this for account verification</div>
+                                    <div class="password-feedback" id="emailFeedback"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="section-divider">
+
+                        <!-- Security Section -->
+                        <div class="form-section">
+                            <h6 class="text-primary mb-3">
+                                <i class="fas fa-shield-alt icon-pad"></i>Account Security
+                            </h6>
+
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="password" class="form-label">
+                                        <i class="fas fa-lock icon-pad"></i>Password *
+                                    </label>
+                                    <input type="password" autocomplete="new-password" class="form-control" id="password" name="password" required
+                                           placeholder="Create a strong password">
+                                    <div class="password-strength" id="passwordStrength"></div>
+                                    <div class="form-text">
+                                        Must contain: uppercase, lowercase, number, and special character
+                                    </div>
+                                    <div class="password-feedback" id="passwordFeedback"></div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="confirm_password" class="form-label">
+                                        <i class="fas fa-lock icon-pad"></i>Confirm Password *
+                                    </label>
+                                    <input type="password" autocomplete="new-password" class="form-control" id="confirm_password" name="confirm_password"
+                                           required placeholder="Repeat your password">
+                                    <div class="form-text">Must match your password exactly</div>
+                                    <div class="password-feedback" id="confirmPasswordFeedback"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="section-divider">
+
+                        <!-- Security Question Section -->
+                        <div class="form-section">
+                            <h6 class="text-primary mb-3">
+                                <i class="fas fa-question-circle icon-pad"></i>Account Recovery
+                            </h6>
+
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle icon-pad"></i>
+                                <strong>Important:</strong> This information will help you recover your account if you forget your password.
+                            </div>
+
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label for="security_question" class="form-label">
+                                        <i class="fas fa-question icon-pad"></i>Security Question *
+                                    </label>
+                                    <input type="text" class="form-control" id="security_question" name="security_question" required
+                                           placeholder="e.g., What was the name of your first pet?">
+                                    <div class="form-text">Choose a question only you know the answer to</div>
+                                </div>
+
+                                <div class="col-12">
+                                    <label for="security_answer" class="form-label">
+                                        <i class="fas fa-key icon-pad"></i>Security Answer *
+                                    </label>
+                                    <input type="text" class="form-control" id="security_answer" name="security_answer" required
+                                           placeholder="Enter your answer">
+                                    <div class="form-text">Remember this answer - it's case sensitive</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a href="{{ url_for('main.login') }}" class="btn btn-outline-secondary me-md-2">
+                                <i class="fas fa-sign-in-alt icon-pad"></i>Already have account?
+                            </a>
+                            <button type="submit" class="btn btn-success" id="submitBtn">
+                                <i class="fas fa-user-plus icon-pad"></i>Create Account
+                                <div class="loading-spinner" id="loadingSpinner"></div>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Help Card -->
+            <div class="card shadow-sm mt-4">
+                <div class="card-header bg-info text-white">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-question-circle icon-pad"></i>Need Help?
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-shield-alt icon-pad text-success"></i>Password Requirements</h6>
+                            <ul class="list-unstyled small">
+                                <li><i class="fas fa-check text-success"></i> At least 8 characters long</li>
+                                <li><i class="fas fa-check text-success"></i> One uppercase letter (A-Z)</li>
+                                <li><i class="fas fa-check text-success"></i> One lowercase letter (a-z)</li>
+                                <li><i class="fas fa-check text-success"></i> One number (0-9)</li>
+                                <li><i class="fas fa-check text-success"></i> One special character (@$!%*?&)</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-lightbulb icon-pad text-warning"></i>Tips for Security</h6>
+                            <ul class="list-unstyled small">
+                                <li><i class="fas fa-check text-warning"></i> Use a unique password</li>
+                                <li><i class="fas fa-check text-warning"></i> Don't share your credentials</li>
+                                <li><i class="fas fa-check text-warning"></i> Remember your security question</li>
+                                <li><i class="fas fa-check text-warning"></i> Keep your email updated</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="form-group">
-            <label for="password">Password</label>
-            <input type="password" class="form-control" id="password" name="password" required>
-        </div>
-        <div class="form-group">
-            <label for="confirm_password">Confirm Password</label>
-            <input type="password" class="form-control" id="confirm_password" name="confirm_password" onkeyup="validatePassword()" required>
-        </div>
-        <div class="form-group">
-            <label for="security_question">Security Question</label>
-            <input type="text" class="form-control" id="security_question" name="security_question" required>
-        </div>
-        <div class="form-group">
-            <label for="security_answer">Security Answer</label>
-            <input type="text" class="form-control" id="security_answer" name="security_answer" required>
-        </div>
-        <button type="submit" class="btn btn-primary">Register</button>
-        <a href="{{ url_for('main.login') }}" class="btn btn-secondary">Already have an account</a>
-    </form>
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-$(document).ready(function(){
-    $('#confirm_password').tooltip({
-        trigger: 'manual',
-        placement: 'right',
-        template: '<div class="tooltip custom-tooltip" role="tooltip"><div class="arrow"></div><div class="tooltip-inner"></div></div>',
-        html: true
-    });
-    $('#password').tooltip({
-        trigger: 'manual',
-        placement: 'right',
-        template: '<div class="tooltip custom-tooltip" role="tooltip"><div class="arrow"></div><div class="tooltip-inner"></div></div>',
-        html: true
-    });
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> <!-- Ensure jQuery is loaded -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
 
-    $('#username').tooltip({
-        trigger: 'manual',
-        placement: 'right',
-        template: '<div class="tooltip custom-tooltip" role="tooltip"><div class="arrow"></div><div class="tooltip-inner"></div></div>',
-        html: true
-    });
+<script>
+(function() {
+    'use strict';
 
-    $('#email').tooltip({
-        trigger: 'manual',
-        placement: 'left',
-        template: '<div class="tooltip custom-tooltip" role="tooltip"><div class="arrow"></div><div class="tooltip-inner"></div></div>',
-        html: true
-    });
+    var validationState = {
+        username: false,
+        email: false,
+        password: false,
+        confirmPassword: false
+    };
 
-    $('#username').on('blur', function() {
-        var username = $(this).val();
-        $.ajax({
-            url: '/check_username',
-            type: 'POST',
-            data: { username: username },
-            success: function(response) {
-                if (response.exists) {
-                    $('#username').attr('data-original-title', 'Username is already taken').tooltip('show');
-                } else {
-                    $('#username').tooltip('hide');
-                }
-            }
-        });
-    });
+    function validateUsername() {
+        var username = document.getElementById("username").value.trim();
+        var feedback = document.getElementById("usernameFeedback");
+        var usernamePattern = /^[a-zA-Z0-9_]{3,20}$/;
 
-    $('form').on('submit', function(event) {
-        var username = $('#username').val();
-        $.ajax({
-            url: '/check_username',
-            type: 'POST',
-            data: { username: username },
-            async: false,
-            success: function(response) {
-                if (response.exists) {
-                    $('#username').attr('data-original-title', 'Username is already taken').tooltip('show');
-                    event.preventDefault();
-                } else {
-                    $('#username').tooltip('hide');
-                }
-            }
-        });
-    });
-});
+        if (!username) {
+            feedback.className = 'password-feedback';
+            validationState.username = false;
+            return false;
+        }
 
-// TODO: Add validation for the email same as the username to be unique
+        if (!usernamePattern.test(username)) {
+            feedback.innerHTML = '<i class="fas fa-times"></i> Username must be 3-20 characters long and contain only letters, numbers, and underscores';
+            feedback.className = 'password-feedback error show';
+            validationState.username = false;
+            return false;
+        }
 
-function validateEmail() {
-    var email = document.getElementById("email").value;
-    var emailPattern = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
-    if (!emailPattern.test(email)) {
-        $('#email').attr('data-original-title', 'Invalid email address').tooltip('show');
-        return false;
-    } else {
-        $('#email').tooltip('hide');
+        checkUsernameAvailability(username);
+        validationState.username = true;
         return true;
     }
-}
 
-function validatePassword() {
-    var password = document.getElementById("password").value;
-    var confirmPassword = document.getElementById("confirm_password").value;
-    var passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    function checkUsernameAvailability(username) {
+        var feedback = document.getElementById("usernameFeedback");
 
-    var criteria = [
-        { regex: /[A-Z]/, message: 'One uppercase letter' },
-        { regex: /[a-z]/, message: 'One lowercase letter' },
-        { regex: /\d/, message: 'One number' },
-        { regex: /[@$!%*?&]/, message: 'One special character' }
-    ];
+        feedback.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking availability...';
+        feedback.className = 'password-feedback info show';
 
-    var tooltipContent = 'Password must contain at least:<br>';
-    criteria.forEach(function(criterion) {
-        if (criterion.regex.test(password)) {
-            tooltipContent += '<i class="fas fa-check text-success"></i> ' + criterion.message + '<br>';
+        // Ensure jQuery is loaded before using $.ajax
+        if (typeof $ === 'undefined' || typeof $.ajax === 'undefined') {
+            console.error('jQuery is not loaded. Ensure the jQuery library is included.');
+            feedback.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Unable to check username availability';
+            feedback.className = 'password-feedback warning show';
+            return;
+        }
+
+        $.ajax({
+            url: '/check_username',
+            type: 'POST',
+            data: { username: username },
+            success: function(response) {
+                if (response.exists) {
+                    feedback.innerHTML = '<i class="fas fa-times"></i> Username is already taken';
+                    feedback.className = 'password-feedback error show';
+                    validationState.username = false;
+                } else {
+                    feedback.innerHTML = '<i class="fas fa-check"></i> Username is available';
+                    feedback.className = 'password-feedback success show';
+                    validationState.username = true;
+                }
+            },
+            error: function() {
+                feedback.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Unable to check username availability';
+                feedback.className = 'password-feedback warning show';
+                validationState.username = false;
+            }
+        });
+    }
+
+    function validateEmail() {
+        var email = document.getElementById("email").value.trim();
+        var emailPattern = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
+        var feedback = document.getElementById("emailFeedback");
+
+        if (!email) {
+            feedback.className = 'password-feedback';
+            validationState.email = false;
+            return false;
+        }
+
+        if (!emailPattern.test(email)) {
+            feedback.innerHTML = '<i class="fas fa-times"></i> Please enter a valid email address';
+            feedback.className = 'password-feedback error show';
+            validationState.email = false;
+            return false;
         } else {
-            tooltipContent += '<i class="fas fa-times text-danger"></i> ' + criterion.message + '<br>';
+            checkEmailAvailability(email);
+            return true;
+        }
+    }
+
+    function checkEmailAvailability(email) {
+        var feedback = document.getElementById("emailFeedback");
+
+        feedback.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking email...';
+        feedback.className = 'password-feedback info show';
+
+        $.ajax({
+            url: '/check_email',
+            type: 'POST',
+            data: { email: email },
+            success: function(response) {
+                if (response.exists) {
+                    feedback.innerHTML = '<i class="fas fa-times"></i> Email is already registered';
+                    feedback.className = 'password-feedback error show';
+                    validationState.email = false;
+                } else {
+                    feedback.innerHTML = '<i class="fas fa-check"></i> Email is available';
+                    feedback.className = 'password-feedback success show';
+                    validationState.email = true;
+                }
+            },
+            error: function() {
+                feedback.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Unable to check email availability';
+                feedback.className = 'password-feedback warning show';
+                validationState.email = false;
+            }
+        });
+    }
+
+    function validatePassword() {
+        var password = document.getElementById("password").value;
+        var confirmPassword = document.getElementById("confirm_password").value;
+        var passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+
+        updatePasswordStrength(password);
+        showPasswordRequirements(password);
+
+        if (confirmPassword.length > 0) {
+            validateConfirmPassword();
+        }
+
+        validationState.password = passwordPattern.test(password);
+        return validationState.password;
+    }
+
+    function showPasswordRequirements(password) {
+        var feedback = document.getElementById("passwordFeedback");
+
+        if (!password) {
+            feedback.className = 'password-feedback';
+            return;
+        }
+
+        var criteria = [
+            { regex: /[A-Z]/, message: 'One uppercase letter' },
+            { regex: /[a-z]/, message: 'One lowercase letter' },
+            { regex: /\d/, message: 'One number' },
+            { regex: /[@$!%*?&]/, message: 'One special character' },
+            { regex: /.{8,}/, message: 'At least 8 characters' }
+        ];
+
+        var feedbackContent = '';
+        var passedCriteria = 0;
+
+        criteria.forEach(function(criterion) {
+            if (criterion.regex.test(password)) {
+                feedbackContent += '<i class="fas fa-check text-success"></i> ' + criterion.message + '<br>';
+                passedCriteria++;
+            } else {
+                feedbackContent += '<i class="fas fa-times text-danger"></i> ' + criterion.message + '<br>';
+            }
+        });
+
+        feedback.innerHTML = feedbackContent;
+
+        if (passedCriteria === criteria.length) {
+            feedback.className = 'password-feedback success show';
+        } else {
+            feedback.className = 'password-feedback error show';
+        }
+    }
+
+    function validateConfirmPassword() {
+        var password = document.getElementById("password").value;
+        var confirmPassword = document.getElementById("confirm_password").value;
+        var feedback = document.getElementById("confirmPasswordFeedback");
+
+        if (!confirmPassword) {
+            feedback.className = 'password-feedback';
+            validationState.confirmPassword = false;
+            return false;
+        }
+
+        if (password !== confirmPassword) {
+            feedback.innerHTML = '<i class="fas fa-times"></i> Passwords do not match';
+            feedback.className = 'password-feedback error show';
+            validationState.confirmPassword = false;
+            return false;
+        } else {
+            feedback.innerHTML = '<i class="fas fa-check"></i> Passwords match perfectly';
+            feedback.className = 'password-feedback success show';
+            validationState.confirmPassword = true;
+            return true;
+        }
+    }
+
+    function updatePasswordStrength(password) {
+        var strengthBar = document.getElementById('passwordStrength');
+        if (!strengthBar) {
+            console.warn('Password strength bar element not found.');
+            return;
+        }
+
+        var strength = 0;
+        var checks = [
+            /[a-z]/,
+            /[A-Z]/,
+            /\d/,
+            /[@$!%*?&]/,
+            /.{8,}/
+        ];
+
+        checks.forEach(function(check) {
+            if (check.test(password)) strength++;
+        });
+
+        strengthBar.style.display = password ? 'block' : 'none';
+
+        if (strength <= 2) {
+            strengthBar.className = 'password-strength strength-weak';
+        } else if (strength <= 4) {
+            strengthBar.className = 'password-strength strength-medium';
+        } else {
+            strengthBar.className = 'password-strength strength-strong';
+        }
+    }
+
+    function validateForm(event) {
+        event.preventDefault();
+
+        var username = document.getElementById('username').value.trim();
+        var email = document.getElementById('email').value.trim();
+        var password = document.getElementById('password').value;
+        var confirmPassword = document.getElementById('confirm_password').value;
+        var securityQuestion = document.getElementById('security_question').value.trim();
+        var securityAnswer = document.getElementById('security_answer').value.trim();
+
+        var isValid = true;
+        var errorMessages = [];
+
+        var usernamePattern = /^[a-zA-Z0-9_]{3,20}$/;
+        if (!username) {
+            errorMessages.push('Username is required');
+            isValid = false;
+        } else if (!usernamePattern.test(username)) {
+            errorMessages.push('Username must be 3-20 characters long and contain only letters, numbers, and underscores');
+            isValid = false;
+        } else if (!validationState.username) {
+            errorMessages.push('Please choose a different username');
+            isValid = false;
+        }
+
+        var emailPattern = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
+        if (!email) {
+            errorMessages.push('Email is required');
+            isValid = false;
+        } else if (!emailPattern.test(email)) {
+            errorMessages.push('Please enter a valid email address');
+            isValid = false;
+        } else if (!validationState.email) {
+            errorMessages.push('Please use a different email address');
+            isValid = false;
+        }
+
+        var passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+        if (!password) {
+            errorMessages.push('Password is required');
+            isValid = false;
+        } else if (!passwordPattern.test(password)) {
+            errorMessages.push('Password does not meet security requirements');
+            isValid = false;
+        }
+
+        if (!confirmPassword) {
+            errorMessages.push('Please confirm your password');
+            isValid = false;
+        } else if (password !== confirmPassword) {
+            errorMessages.push('Passwords do not match');
+            isValid = false;
+        }
+
+        if (!securityQuestion) {
+            errorMessages.push('Security question is required');
+            isValid = false;
+        }
+        if (!securityAnswer) {
+            errorMessages.push('Security answer is required');
+            isValid = false;
+        }
+
+        var submitBtn = document.getElementById('submitBtn');
+
+        if (!isValid) {
+            event.preventDefault();
+            alert('Please fix the following issues:\n\n• ' + errorMessages.join('\n• '));
+            return false;
+        }
+
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin icon-pad"></i>Creating Account...';
+        }
+
+        setTimeout(function() {
+            alert('Account created successfully! Welcome aboard!');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-user-plus icon-pad"></i>Create Account';
+            }
+        }, 2000);
+
+        return true;
+    }
+
+    function initializeDarkMode() {
+        var darkModeToggle = document.getElementById('darkModeToggle');
+        if (!darkModeToggle) return;
+
+        var body = document.body;
+
+        darkModeToggle.addEventListener('change', function() {
+            if (this.checked) {
+                body.classList.add('dark-mode');
+            } else {
+                body.classList.remove('dark-mode');
+            }
+        });
+    }
+
+    function debounce(func, wait) {
+        var timeout;
+        return function executedFunction() {
+            var context = this;
+            var args = arguments;
+            var later = function() {
+                clearTimeout(timeout);
+                func.apply(context, args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeDarkMode();
+
+        var debouncedUsernameCheck = debounce(validateUsername, 500);
+        var debouncedEmailCheck = debounce(validateEmail, 500);
+
+        var usernameField = document.getElementById('username');
+        if (usernameField) {
+            usernameField.addEventListener('input', debouncedUsernameCheck);
+            usernameField.addEventListener('blur', validateUsername);
+        }
+
+        var emailField = document.getElementById('email');
+        if (emailField) {
+            emailField.addEventListener('input', debouncedEmailCheck);
+            emailField.addEventListener('blur', validateEmail);
+        }
+
+        var passwordField = document.getElementById('password');
+        if (passwordField) {
+            passwordField.addEventListener('input', validatePassword);
+            passwordField.addEventListener('keyup', validatePassword);
+        }
+
+        var confirmPasswordField = document.getElementById('confirm_password');
+        if (confirmPasswordField) {
+            confirmPasswordField.addEventListener('input', validateConfirmPassword);
+            confirmPasswordField.addEventListener('keyup', validateConfirmPassword);
+        }
+
+        var form = document.getElementById('registrationForm') || document.querySelector('form');
+        if (form) {
+            form.addEventListener('submit', validateForm);
+        }
+
+        var inputs = document.querySelectorAll('.form-control');
+        inputs.forEach(function(input) {
+            input.addEventListener('focus', function() {
+                this.parentElement.style.transform = 'scale(1.02)';
+                this.parentElement.style.transition = 'transform 0.2s ease';
+            });
+
+            input.addEventListener('blur', function() {
+                this.parentElement.style.transform = 'scale(1)';
+            });
+        });
+
+        if (typeof bootstrap !== 'undefined') {
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
         }
     });
 
-    if (!passwordPattern.test(password)) {
-        $('#password').attr('data-original-title', tooltipContent).tooltip('show');
-        $('.tooltip').addClass('show');
-        return false;
-    } else {
-        $('#password').tooltip('hide');
-        $('.tooltip').removeClass('show');
-    }
-
-    if (password !== confirmPassword) {
-        $('#confirm_password').attr('data-original-title', 'Passwords do not match').tooltip('show');
-        $('.tooltip').addClass('show');
-        return false;
-    } else {
-        $('#confirm_password').tooltip('hide');
-        $('.tooltip').removeClass('show');
-        return true;
-    }
-}
-
-function validateForm(event) {
-    if (!validateEmail() || !validatePassword()) {
-        event.preventDefault();
-    }
-}
+})();
+</script>
 {% endblock %}
