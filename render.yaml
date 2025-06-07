@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: TODO
+    env: python
+    plan: free
+    buildCommand: ""
+    startCommand: ./start.sh
