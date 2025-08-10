@@ -4,16 +4,36 @@ import bcrypt
 from app import db
 from app.models import User, Task
 import json
+from flask import make_response
+from datetime import datetime
 import os
 from werkzeug.utils import secure_filename
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+from reportlab.lib.units import inch
+import io
 
+# Define a Flask Blueprint for the main routes of the application
 main = Blueprint('main', __name__)
 
-MAX_NESTING_DEPTH = 5  # Maximum depth for nested subtasks
+# Maximum depth allowed for nested subtasks
+MAX_NESTING_DEPTH = 5
 
 
 @main.route('/login', methods=['GET', 'POST'])
 def login():
+    """
+    Handle user login.
+
+    GET: Render the login page.
+    POST: Authenticate the user and log them in if credentials are valid.
+
+    Returns:
+        - On GET: Rendered login page.
+        - On POST: Redirect to the index page if login is successful, otherwise re-render login page with an error message.
+    """
     error_message = None
     if request.method == 'POST':
         username = request.form.get('username')
@@ -31,12 +51,28 @@ def login():
 @main.route('/logout')
 @login_required
 def logout():
+    """
+    Log out the currently logged-in user.
+
+    Returns:
+        Redirect to the login page.
+    """
     logout_user()
     return redirect(url_for('main.login'))
 
 
 @main.route('/register', methods=['GET', 'POST'])
 def register():
+    """
+    Handle user registration.
+
+    GET: Render the registration page.
+    POST: Create a new user account with the provided details.
+
+    Returns:
+        - On GET: Rendered registration page.
+        - On POST: Redirect to the login page after successful registration.
+    """
     if request.method == 'POST':
         username = request.form.get('username')
         email = request.form.get('email')
@@ -56,6 +92,18 @@ def register():
 @main.route('/')
 @login_required
 def index():
+    """
+    Display the main task management page.
+
+    Retrieves tasks for the current user, applies sorting and filtering, and renders the index page.
+
+    Query Parameters:
+        - sort_by: Field to sort tasks by (default: 'priority').
+        - filter_by: Filter tasks by priority (optional).
+
+    Returns:
+        Rendered index page with tasks and suggested tasks.
+    """
     sort_by = request.args.get('sort_by', 'priority')
     filter_by = request.args.get('filter_by', '')
 
@@ -94,19 +142,26 @@ def index():
 @main.route('/add', methods=['GET', 'POST'])
 @login_required
 def add():
+    """
+    Add a new task or subtask.
+
+    GET: Render the task addition form.
+    POST: Process the form data to create a new task or subtask.
+
+    Form Data:
+        - title (str): The title of the task (required).
+        - priority (int): The priority of the task (default: 1).
+        - parent_task_id (int, optional): The ID of the parent task for subtasks.
+
+    Returns:
+        - On success: Redirect to the index page or parent task details page.
+        - On failure: Redirect to the index page with an error message.
+    """
     # Debug: Print all form data
-    print("=== ADD ROUTE DEBUG ===")
-    print(f"Request method: {request.method}")
-    print(f"Form data: {request.form}")
 
     title = request.form.get('title')
     priority = int(request.form.get('priority', 1))
     parent_task_id = request.form.get('parent_task_id')
-
-    print(f"Title: {title}")
-    print(f"Priority: {priority}")
-    print(f"Parent Task ID: {parent_task_id}")
-    print(f"Parent Task ID type: {type(parent_task_id)}")
 
     if not title:
         flash('Task title is required!', 'error')
@@ -116,9 +171,7 @@ def add():
     if parent_task_id and parent_task_id.strip():
         try:
             parent_task_id = int(parent_task_id)
-            print(f"Converted parent_task_id to int: {parent_task_id}")
         except (ValueError, TypeError):
-            print(f"Failed to convert parent_task_id to int: {parent_task_id}")
             parent_task_id = None
     else:
         parent_task_id = None
@@ -127,7 +180,6 @@ def add():
     depth = 0
     if parent_task_id:
         parent_task = Task.query.get(parent_task_id)
-        print(f"Parent task found: {parent_task}")
 
         if parent_task and parent_task.user_id == current_user.id:
             print(f"Parent task belongs to current user")
@@ -136,9 +188,7 @@ def add():
                 flash(f'Maximum nesting depth of {MAX_NESTING_DEPTH} levels reached!', 'error')
                 return redirect(url_for('main.task_details', task_id=parent_task_id))
             depth = parent_task.depth + 1
-            print(f"Subtask depth will be: {depth}")
         else:
-            print(f"Invalid parent task or access denied")
             flash('Invalid parent task or access denied!', 'error')
             return redirect(url_for('main.index'))
 
@@ -151,15 +201,8 @@ def add():
         depth=depth
     )
 
-    print(f"Creating task: {new_task.title}")
-    print(f"Task parent_task_id: {new_task.parent_task_id}")
-    print(f"Task depth: {new_task.depth}")
-
     db.session.add(new_task)
     db.session.commit()
-
-    print(f"Task created successfully with ID: {new_task.id}")
-    print("=== END DEBUG ===")
 
     # Redirect logic
     if parent_task_id:
@@ -169,12 +212,30 @@ def add():
         flash('Task added successfully!', 'success')
         return redirect(url_for('main.index'))
 
+
 @main.route('/complete/<int:task_id>')
 @login_required
 def complete(task_id):
+    """
+    Toggle the completion status of a task and its subtasks.
+
+    Args:
+        task_id (int): The ID of the task to toggle.
+
+    Returns:
+        - Redirect to the parent task details page if the task is a subtask.
+        - Redirect to the index page otherwise.
+    """
+    def toggle_subtasks(task, completed_status):
+        """Recursively mark all subtasks as completed or not completed."""
+        for subtask in task.subtasks:
+            subtask.completed = completed_status
+            toggle_subtasks(subtask, completed_status)
+
     task = db.session.get(Task, task_id)
     if task and task.user_id == current_user.id:
         task.completed = not task.completed
+        toggle_subtasks(task, task.completed)  # Update all subtasks
         db.session.commit()
 
         # If it's a subtask, redirect to the appropriate parent task details
@@ -189,6 +250,16 @@ def complete(task_id):
 @main.route('/delete/<int:task_id>')
 @login_required
 def delete(task_id):
+    """
+    Delete a task and its subtasks.
+
+    Args:
+        task_id (int): The ID of the task to delete.
+
+    Returns:
+        - Redirect to the parent task details page if the task is a subtask.
+        - Redirect to the index page otherwise.
+    """
     task = db.session.get(Task, task_id)
     if task and task.user_id == current_user.id:
         # Store parent task ID and root task ID before deletion
@@ -205,10 +276,18 @@ def delete(task_id):
 
     return redirect(url_for('main.index'))
 
-
 @main.route('/task/<int:task_id>')
 @login_required
 def task_details(task_id):
+    """
+    Display the details of a specific task, including its subtasks and breadcrumb navigation.
+
+    Args:
+        task_id (int): The ID of the task to display.
+
+    Returns:
+        Rendered task details page with the task, its subtasks, and breadcrumb navigation.
+    """
     task = Task.query.get_or_404(task_id)
 
     # Ensure the task belongs to the current user
@@ -217,6 +296,15 @@ def task_details(task_id):
 
     # Get all subtasks with their subtasks loaded
     def load_subtasks_recursive(parent_task):
+        """
+        Recursively load all subtasks for a given parent task.
+
+        Args:
+            parent_task (Task): The parent task whose subtasks need to be loaded.
+
+        Returns:
+            list: A list of all subtasks for the parent task.
+        """
         subtasks = parent_task.subtasks.all()
         for subtask in subtasks:
             load_subtasks_recursive(subtask)
@@ -236,6 +324,12 @@ def task_details(task_id):
 
 @main.route('/check_username', methods=['POST'])
 def check_username():
+    """
+    Check if a username already exists in the database.
+
+    Returns:
+        JSON response indicating whether the username exists.
+    """
     existing_usernames = [user.username for user in User.query.all()]
     username = request.form.get('username')
     if username in existing_usernames:
@@ -245,6 +339,16 @@ def check_username():
 
 @main.route('/forgot_password', methods=['GET', 'POST'])
 def forgot_password():
+    """
+    Handle the forgot password process.
+
+    GET: Render the forgot password page.
+    POST: Verify the username and redirect to the security answer page if valid.
+
+    Returns:
+        - On GET: Rendered forgot password page.
+        - On POST: JSON response or redirect to the security answer page.
+    """
     if request.method == 'POST':
         username = request.form.get('username')
         user = User.query.filter_by(username=username).first()
@@ -259,6 +363,16 @@ def forgot_password():
 
 @main.route('/security_answer', methods=['GET', 'POST'])
 def security_answer():
+    """
+    Handle the security question verification process.
+
+    GET: Render the security answer page.
+    POST: Verify the security answer and redirect to the password reset page if valid.
+
+    Returns:
+        - On GET: Rendered security answer page.
+        - On POST: JSON response indicating success or failure.
+    """
     username = session.get('username')
     security_question = session.get('security_question')
     if request.method == 'POST':
@@ -273,6 +387,16 @@ def security_answer():
 
 @main.route('/reset_password', methods=['GET', 'POST'])
 def reset_password():
+    """
+    Handle the password reset process.
+
+    GET: Render the password reset page.
+    POST: Update the user's password in the database.
+
+    Returns:
+        - On GET: Rendered password reset page.
+        - On POST: JSON response indicating success or failure.
+    """
     if request.method == 'POST':
         new_password = request.form.get('new_password')
         confirm_password = request.form.get('confirm_password')
@@ -289,6 +413,16 @@ def reset_password():
 @main.route('/edit/<int:task_id>', methods=['GET', 'POST'])
 @login_required
 def edit(task_id):
+    """
+    Edit the details of a specific task.
+
+    Args:
+        task_id (int): The ID of the task to edit.
+
+    Returns:
+        - On GET: Rendered edit task page.
+        - On POST: Redirect to the appropriate page after updating the task.
+    """
     task = Task.query.get(task_id)
     if not task or task.user_id != current_user.id:
         return redirect(url_for('main.index'))
@@ -310,15 +444,38 @@ def edit(task_id):
 @main.route('/add_suggested/<string:task_title>', methods=['POST'])
 @login_required
 def add_suggested(task_title):
+    """
+    Add a suggested task to the user's task list.
+
+    Args:
+        task_title (str): The title of the suggested task.
+
+    Returns:
+        Redirect to the index page after adding the task.
+    """
     priority = request.form.get('priority', 1)
     new_task = Task(title=task_title, user_id=current_user.id, priority=priority, depth=0)
     db.session.add(new_task)
     db.session.commit()
     return redirect(url_for('main.index'))
 
-
 @main.route('/import_markdown', methods=['POST'])
 def import_markdown():
+    """
+    Handle the import of tasks from a markdown file or parsed data.
+
+    This function supports two modes of importing:
+    1. Importing from parsed tasks data provided in the request form.
+    2. Uploading a markdown file directly and parsing its content.
+
+    Request Form:
+        - parsed_tasks (str, optional): JSON string of parsed tasks data.
+        - markdown_file (File, optional): Uploaded markdown file.
+        - default_priority (int, optional): Default priority for tasks (default: 2).
+
+    Returns:
+        Redirect to the index page with a success or error message.
+    """
     try:
         # Check if parsed tasks data is provided (from preview)
         if 'parsed_tasks' in request.form:
@@ -364,14 +521,30 @@ def import_markdown():
 
 
 def allowed_file(filename):
-    """Check if the uploaded file has an allowed extension"""
+    """
+    Check if the uploaded file has an allowed extension.
+
+    Args:
+        filename (str): The name of the uploaded file.
+
+    Returns:
+        bool: True if the file has an allowed extension, False otherwise.
+    """
     ALLOWED_EXTENSIONS = {'md', 'txt'}
     return '.' in filename and \
         filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
 def parse_markdown_content(content):
-    """Parse markdown content and extract tasks with nested structure"""
+    """
+    Parse markdown content and extract tasks with a nested structure.
+
+    Args:
+        content (str): The content of the markdown file.
+
+    Returns:
+        list: A list of tasks with their nested subtasks.
+    """
     lines = content.split('\n')
     tasks = []
     task_stack = []  # Stack to track nested structure
@@ -473,10 +646,30 @@ def parse_markdown_content(content):
 
 
 def import_tasks_from_data(parsed_tasks, default_priority):
-    """Import tasks from parsed data into the database with nested structure"""
+    """
+    Import tasks from parsed data into the database with a nested structure.
+
+    Args:
+        parsed_tasks (list): A list of parsed tasks with nested subtasks.
+        default_priority (int): The default priority to assign to tasks.
+
+    Returns:
+        int: The total number of tasks imported.
+    """
     imported_count = 0
 
     def create_task_recursive(task_data, parent_id=None, current_depth=0):
+        """
+        Recursively create tasks and their subtasks in the database.
+
+        Args:
+            task_data (dict): The data for the task to create.
+            parent_id (int, optional): The ID of the parent task.
+            current_depth (int): The current depth of the task in the hierarchy.
+
+        Returns:
+            Task: The created task object.
+        """
         nonlocal imported_count
 
         # Prevent excessive nesting
@@ -507,3 +700,435 @@ def import_tasks_from_data(parsed_tasks, default_priority):
 
     db.session.commit()
     return imported_count
+
+@main.route('/export_tasks')
+@login_required
+def export_tasks():
+    """
+    Export all user tasks to a markdown file.
+
+    Retrieves all main tasks for the current user, sorts them by priority and title,
+    generates markdown content, and prepares it for download as a file.
+
+    Returns:
+        Response: A Flask response object containing the markdown file for download.
+    """
+    try:
+        # Get all main tasks (no parent) for the current user
+        main_tasks = Task.query.filter_by(user_id=current_user.id, parent_task_id=None).all()
+
+        # Sort tasks by priority (high to low) then by title
+        main_tasks.sort(key=lambda t: (-t.priority, t.title))
+
+        # Generate markdown content
+        markdown_content = generate_markdown_export(main_tasks)
+
+        # Create response with markdown content
+        response = make_response(markdown_content)
+
+        # Set headers for file download
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"my_tasks_{timestamp}.md"
+
+        response.headers['Content-Type'] = 'text/markdown'
+        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        return response
+
+    except Exception as e:
+        flash(f'Error exporting tasks: {str(e)}', 'error')
+        return redirect(url_for('main.index'))
+
+
+def generate_markdown_export(tasks):
+    """
+    Generate markdown content from a list of tasks.
+
+    Args:
+        tasks (list): A list of main tasks to be exported.
+
+    Returns:
+        str: A string containing the markdown representation of the tasks.
+    """
+    content = []
+
+    # Add header with metadata
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    content.append(f"# My Tasks Export")
+    content.append(f"**Exported on:** {current_time}")
+    content.append(f"**Total main tasks:** {len(tasks)}")
+    content.append("")
+
+    # Add summary statistics
+    total_tasks = count_all_tasks(tasks)
+    completed_tasks = count_completed_tasks(tasks)
+    content.append(f"**Total tasks (including subtasks):** {total_tasks}")
+    content.append(f"**Completed tasks:** {completed_tasks}")
+    content.append(f"**Pending tasks:** {total_tasks - completed_tasks}")
+    content.append("")
+    content.append("---")
+    content.append("")
+
+    # Process each main task
+    for task in tasks:
+        content.extend(format_task_as_markdown(task, is_main_task=True))
+        content.append("")  # Add spacing between main tasks
+
+    return '\n'.join(content)
+
+
+def format_task_as_markdown(task, is_main_task=False, depth=0):
+    """
+    Format a single task and its subtasks as markdown.
+
+    Args:
+        task (Task): The task to format.
+        is_main_task (bool): Whether the task is a main task.
+        depth (int): The depth of the task in the hierarchy for indentation.
+
+    Returns:
+        list: A list of strings representing the task in markdown format.
+    """
+    lines = []
+
+    if is_main_task:
+        # Main task as a header
+        status_icon = "✅" if task.completed else "📝"
+        priority_text = get_priority_text(task.priority)
+        lines.append(f"## {status_icon} {task.title}")
+        lines.append(f"**Priority:** {priority_text}")
+        lines.append(f"**Status:** {'Completed' if task.completed else 'Pending'}")
+        lines.append("")
+    else:
+        # Subtask as checkbox with proper indentation
+        indent = "  " * depth
+        checkbox = "[x]" if task.completed else "[ ]"
+        priority_indicator = get_priority_indicator(task.priority)
+        lines.append(f"{indent}- {checkbox} {task.title} {priority_indicator}")
+
+    # Add subtasks recursively
+    if task.subtasks:
+        subtasks = list(task.subtasks)
+        subtasks.sort(key=lambda t: (-t.priority, t.title))
+
+        for subtask in subtasks:
+            if is_main_task:
+                lines.extend(format_task_as_markdown(subtask, False, 0))
+            else:
+                lines.extend(format_task_as_markdown(subtask, False, depth + 1))
+
+    return lines
+
+
+def get_priority_text(priority):
+    """
+    Convert a priority number to descriptive text.
+
+    Args:
+        priority (int): The priority level of the task.
+
+    Returns:
+        str: A string representing the priority level.
+    """
+    priority_map = {
+        1: "Low",
+        2: "Medium",
+        3: "High"
+    }
+    return priority_map.get(priority, "Medium")
+
+
+def get_priority_indicator(priority):
+    """
+    Get a visual indicator for the task's priority.
+
+    Args:
+        priority (int): The priority level of the task.
+
+    Returns:
+        str: A string containing an emoji representing the priority level.
+    """
+    priority_map = {
+        1: "🔵",  # Low priority
+        2: "🟡",  # Medium priority
+        3: "🔴"  # High priority
+    }
+    return priority_map.get(priority, "🟡")
+
+
+def count_all_tasks(tasks):
+    """
+    Count the total number of tasks, including all subtasks.
+
+    Args:
+        tasks (list): A list of tasks to count.
+
+    Returns:
+        int: The total number of tasks.
+    """
+    count = 0
+    for task in tasks:
+        count += 1  # Count the task itself
+        if task.subtasks:
+            count += count_all_tasks(list(task.subtasks))
+    return count
+
+
+def count_completed_tasks(tasks):
+    """
+    Count the total number of completed tasks, including subtasks.
+
+    Args:
+        tasks (list): A list of tasks to count.
+
+    Returns:
+        int: The total number of completed tasks.
+    """
+    count = 0
+    for task in tasks:
+        if task.completed:
+            count += 1
+        if task.subtasks:
+            count += count_completed_tasks(list(task.subtasks))
+    return count
+
+
+@main.route('/export_tasks_pdf')
+@login_required
+def export_tasks_pdf():
+    """Export tasks to PDF format using ReportLab - One click download"""
+    try:
+        # Get all main tasks for the current user
+        main_tasks = Task.query.filter_by(user_id=current_user.id, parent_task_id=None).all()
+        main_tasks.sort(key=lambda t: (-t.priority, t.title))
+
+        # Create PDF buffer
+        buffer = io.BytesIO()
+
+        # Create PDF document
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"my_tasks_{timestamp}.pdf"
+
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            rightMargin=72,
+            leftMargin=72,
+            topMargin=72,
+            bottomMargin=18
+        )
+
+        # Build PDF content
+        story = build_pdf_story(main_tasks)
+
+        # Generate PDF
+        doc.build(story)
+        buffer.seek(0)
+
+        # Create response for download
+        response = make_response(buffer.getvalue())
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        return response
+
+    except ImportError:
+        flash('PDF export requires ReportLab. Please install it: pip install reportlab', 'error')
+        return redirect(url_for('main.export_tasks'))  # Fallback to markdown
+    except Exception as e:
+        flash(f'Error exporting to PDF: {str(e)}', 'error')
+        return redirect(url_for('main.index'))
+
+
+def build_pdf_story(tasks):
+    """Build the PDF content using ReportLab"""
+    styles = getSampleStyleSheet()
+    story = []
+
+    # Custom styles - Elegant and classy
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Title'],
+        fontSize=24,
+        textColor=colors.HexColor('#2c3e50'),  # Dark blue-grey
+        alignment=1,  # Center
+        spaceAfter=20
+    )
+
+    subtitle_style = ParagraphStyle(
+        'Subtitle',
+        parent=styles['Normal'],
+        fontSize=12,
+        alignment=1,  # Center
+        textColor=colors.HexColor('#7f8c8d'),  # Muted grey
+        spaceAfter=30
+    )
+
+    task_title_style = ParagraphStyle(
+        'TaskTitle',
+        parent=styles['Heading2'],
+        fontSize=16,
+        textColor=colors.HexColor('#2c3e50'),  # Dark blue-grey
+        backgroundColor=colors.HexColor('#ecf0f1'),  # Light grey background
+        borderPadding=10,
+        spaceAfter=10,
+        spaceBefore=10
+    )
+
+    # Title and metadata
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    story.append(Paragraph("📋 My Tasks Export", title_style))
+    story.append(Paragraph(f"Exported on: {current_time}", subtitle_style))
+
+    # Statistics table
+    total_tasks = count_all_tasks(tasks)
+    completed_tasks = count_completed_tasks(tasks)
+
+    stats_data = [
+        ['📊 Statistics', '', '', ''],
+        ['Main Tasks', 'Total Tasks', 'Completed', 'Pending'],
+        [str(len(tasks)), str(total_tasks), str(completed_tasks), str(total_tasks - completed_tasks)]
+    ]
+
+    stats_table = Table(stats_data, colWidths=[1.5 * inch, 1.5 * inch, 1.5 * inch, 1.5 * inch])
+    stats_table.setStyle(TableStyle([
+        # Header row - Elegant dark theme
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#34495e')),  # Dark blue-grey
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 14),
+        ('SPAN', (0, 0), (-1, 0)),  # Merge header cells
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+
+        # Subheader row - Soft accent
+        ('BACKGROUND', (0, 1), (-1, 1), colors.HexColor('#bdc3c7')),  # Light grey
+        ('TEXTCOLOR', (0, 1), (-1, 1), colors.HexColor('#2c3e50')),  # Dark text
+        ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 1), (-1, 1), 11),
+        ('ALIGN', (0, 1), (-1, -1), 'CENTER'),
+
+        # Data row - Clean white
+        ('BACKGROUND', (0, 2), (-1, 2), colors.white),
+        ('TEXTCOLOR', (0, 2), (-1, 2), colors.HexColor('#2c3e50')),
+        ('FONTSIZE', (0, 2), (-1, 2), 12),
+        ('FONTNAME', (0, 2), (-1, 2), 'Helvetica-Bold'),
+
+        # General styling
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7')),  # Subtle grid
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+    ]))
+
+    story.append(stats_table)
+    story.append(Spacer(1, 30))
+
+    # Tasks content
+    if not tasks:
+        story.append(Paragraph("📝 No tasks found", styles['Normal']))
+    else:
+        for i, task in enumerate(tasks):
+            if i > 0:
+                story.append(Spacer(1, 20))
+            story.extend(build_task_content(task, styles))
+
+    return story
+
+
+def build_task_content(task, styles):
+    """Build content for a single main task"""
+    elements = []
+
+    # Task header
+    status_icon = "✅" if task.completed else "📝"
+    priority = get_priority_text(task.priority)
+    status = "Completed" if task.completed else "Pending"
+
+    task_style = ParagraphStyle(
+        'TaskHeader',
+        parent=styles['Heading2'],
+        fontSize=16,
+        textColor=colors.HexColor('#2c3e50') if not task.completed else colors.HexColor('#27ae60'),
+        # Dark grey or elegant green
+        backgroundColor=colors.HexColor('#ecf0f1'),  # Very light grey
+        borderPadding=8,
+        spaceAfter=5
+    )
+
+    elements.append(Paragraph(f"{status_icon} <b>{task.title}</b>", task_style))
+
+    meta_style = ParagraphStyle(
+        'TaskMeta',
+        parent=styles['Normal'],
+        fontSize=11,
+        textColor=colors.HexColor('#7f8c8d'),  # Elegant muted grey
+        spaceAfter=15
+    )
+    elements.append(Paragraph(f"<i>Priority: {priority} | Status: {status}</i>", meta_style))
+
+    # Subtasks
+    if task.subtasks:
+        subtasks = list(task.subtasks)
+        subtasks.sort(key=lambda t: (-t.priority, t.title))
+
+        for subtask in subtasks:
+            elements.extend(build_subtask_content(subtask, styles, 1))
+
+    return elements
+
+
+def build_subtask_content(task, styles, depth):
+    """Build content for subtasks with proper indentation"""
+    elements = []
+
+    # Create indented style
+    indent = depth * 20
+    subtask_style = ParagraphStyle(
+        f'Subtask{depth}',
+        parent=styles['Normal'],
+        fontSize=11,
+        leftIndent=indent,
+        bulletIndent=indent,
+        spaceAfter=3,
+        textColor=colors.HexColor('#95a5a6') if task.completed else colors.HexColor('#2c3e50')  # Muted grey or dark
+    )
+
+    # Format subtask text
+    checkbox = "☑️" if task.completed else "☐"
+    priority_indicator = get_priority_text(task.priority)
+    priority_colors = {
+        'High': colors.red,
+        'Medium': colors.orange,
+        'Low': colors.green
+    }
+    priority_color = priority_colors.get(priority_indicator, colors.black)
+
+    text = f"{checkbox} {task.title} "
+    if task.completed:
+        text = f"<strike>{text}</strike>"
+
+    # Add priority indicator
+    text += f'<font color="{priority_color}">({priority_indicator})</font>'
+
+    elements.append(Paragraph(text, subtask_style))
+
+    # Add nested subtasks
+    if task.subtasks and depth < 5:  # Prevent too deep nesting
+        subtasks = list(task.subtasks)
+        subtasks.sort(key=lambda t: (-t.priority, t.title))
+
+        for subtask in subtasks:
+            elements.extend(build_subtask_content(subtask, styles, depth + 1))
+
+    return elements
+
+
+# Helper function (add this if you don't have it already)
+def get_priority_text(priority):
+    """Convert priority number to text"""
+    priority_map = {
+        1: "Low",
+        2: "Medium",
+        3: "High"
+    }
+    return priority_map.get(priority, "Medium")

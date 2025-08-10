@@ -43,25 +43,25 @@
                         <div class="mb-3">
                             <label for="sort_by" class="form-label">Sort by:</label>
                             <select name="sort_by" id="sort_by" class="form-select">
-                                <option value="priority" {% if sort_by == 'priority' %}selected{% endif %}>Priority</option>
-                                <option value="title" {% if sort_by == 'title' %}selected{% endif %}>Title</option>
+                                <option value="priority" {% if sort_by =='priority' %}selected{% endif %}>Priority</option>
+                                <option value="title" {% if sort_by =='title' %}selected{% endif %}>Title</option>
                             </select>
                         </div>
                         <div class="mb-3">
                             <label for="filter_by" class="form-label">Filter by priority:</label>
                             <select name="filter_by" id="filter_by" class="form-select">
                                 <option value="" {% if not filter_by %}selected{% endif %}>All</option>
-                                <option value="1" {% if filter_by == '1' %}selected{% endif %}>Low</option>
-                                <option value="2" {% if filter_by == '2' %}selected{% endif %}>Medium</option>
-                                <option value="3" {% if filter_by == '3' %}selected{% endif %}>High</option>
+                                <option value="1" {% if filter_by =='1' %}selected{% endif %}>Low</option>
+                                <option value="2" {% if filter_by =='2' %}selected{% endif %}>Medium</option>
+                                <option value="3" {% if filter_by =='3' %}selected{% endif %}>High</option>
                             </select>
                         </div>
                         <div class="mb-3">
                             <label for="show_completed" class="form-label">Show completed:</label>
                             <select name="show_completed" id="show_completed" class="form-select">
-                                <option value="all" {% if show_completed == 'all' %}selected{% endif %}>All Tasks</option>
-                                <option value="false" {% if show_completed == 'false' %}selected{% endif %}>Incomplete Only</option>
-                                <option value="true" {% if show_completed == 'true' %}selected{% endif %}>Completed Only</option>
+                                <option value="all" {% if show_completed =='all' %}selected{% endif %}>All Tasks</option>
+                                <option value="false" {% if show_completed =='false' %}selected{% endif %}>Incomplete Only</option>
+                                <option value="true" {% if show_completed =='true' %}selected{% endif %}>Completed Only</option>
                             </select>
                         </div>
                         <button type="submit" class="btn btn-primary w-100">
@@ -270,14 +270,36 @@
             {% endif %}
 
             <!-- Task List -->
-            <div class="card shadow-sm mb-4">
+           <div class="card shadow-sm mb-4">
                 <div class="card-header bg-primary text-white">
-                    <h6 class="card-title mb-0">
-                        <i class="fas fa-list icon-pad"></i>Your Tasks
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="card-title mb-0">
+                            <i class="fas fa-list icon-pad"></i>Your Tasks
+                            {% if tasks %}
+                                <span class="badge badge-light text-dark ml-2">{{ tasks|list|length }}</span>
+                            {% endif %}
+                        </h6>
+
                         {% if tasks %}
-                            <span class="badge bg-light text-dark ms-2">{{ tasks|list|length }}</span>
+                        <div class="export-dropdown-container">
+                            <button class="btn btn-outline-light btn-sm export-toggle">
+                                <i class="fas fa-download"></i> Export <i class="fas fa-chevron-down ml-1"></i>
+                            </button>
+                            <div class="export-dropdown-menu">
+                                <a href="{{ url_for('main.export_tasks') }}" class="export-dropdown-item">
+                                    <i class="fas fa-file-text mr-2"></i>Download as Markdown
+                                </a>
+                                <a href="{{ url_for('main.export_tasks_pdf') }}" class="export-dropdown-item">
+                                    <i class="fas fa-file-pdf mr-2"></i>Download as PDF
+                                </a>
+                                <div class="export-dropdown-divider"></div>
+                                <span class="export-dropdown-info">
+                                    <i class="fas fa-info-circle mr-1"></i>Exports all tasks with subtasks
+                                </span>
+                            </div>
+                        </div>
                         {% endif %}
-                    </h6>
+                    </div>
                 </div>
                 <div class="card-body p-0">
                     {% if tasks %}
@@ -332,6 +354,91 @@
 </div>
 
 <style>
+
+
+.export-dropdown-container {
+    position: relative;
+    display: inline-block;
+}
+
+.export-dropdown-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    background: white;
+    min-width: 240px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+    z-index: 1000;
+    margin-top: 2px;
+    padding: 4px 0;
+}
+
+.export-dropdown-container:hover .export-dropdown-menu,
+.export-dropdown-menu:hover {
+    display: block;
+}
+
+.export-dropdown-menu::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    right: 0;
+    width: 100%;
+    height: 6px;
+    background: transparent;
+}
+
+.export-dropdown-item {
+    display: block;
+    padding: 10px 16px;
+    color: #333;
+    text-decoration: none;
+    transition: background-color 0.2s;
+    font-size: 14px;
+}
+
+.export-dropdown-item:hover {
+    background-color: #f8f9fa;
+    color: #0d6efd;
+    text-decoration: none;
+}
+
+.export-dropdown-divider {
+    height: 1px;
+    background-color: #dee2e6;
+    margin: 4px 0;
+}
+
+.export-dropdown-info {
+    display: block;
+    padding: 8px 16px;
+    font-size: 12px;
+    color: #6c757d;
+    font-style: italic;
+}
+
+.export-toggle {
+    transition: all 0.2s;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.export-dropdown-container:hover .export-toggle {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.export-toggle .fa-chevron-down {
+    transition: transform 0.2s;
+    font-size: 0.8em;
+}
+
+.export-dropdown-container:hover .export-toggle .fa-chevron-down {
+    transform: rotate(180deg);
+}
+
 /* Icon padding utility */
 .icon-pad {
     margin-right: 0.5rem;
