@@ -4,6 +4,7 @@ from sqlalchemy import ForeignKey
 
 
 class User(db.Model, UserMixin):
+    __tablename__ = "app_user"
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), unique=True, nullable=False)
     email = db.Column(db.String(150), unique=True, nullable=False)
@@ -16,7 +17,7 @@ class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
     completed = db.Column(db.Boolean, default=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('app_user.id'), nullable=False)
     priority = db.Column(db.Integer, default=1)
     parent_task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=True)
     depth = db.Column(db.Integer, default=0)  # Track nesting depth

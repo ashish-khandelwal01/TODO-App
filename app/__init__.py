@@ -4,7 +4,10 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_wtf import CSRFProtect
 from flask_migrate import Migrate
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 csrf = CSRFProtect()
 db = SQLAlchemy()
 login_manager = LoginManager()
@@ -22,10 +25,10 @@ def create_app(config_class=None):
     if config_class:
         app.config.from_object(config_class)
     else:
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///todo.db'
+        app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL")
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
-        app.config['SECRET_KEY'] = '1724f3332fa61e5c88f592c3d4cdbf9be2b0663f2f91252c9a332a81ed6bead7'
+        app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY")
 
     db.init_app(app)
     migrate.init_app(app, db)

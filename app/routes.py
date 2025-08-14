@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, request, session, jsonify, flash
 from flask_login import login_user, login_required, logout_user, current_user
-import bcrypt
+from werkzeug.security import generate_password_hash, check_password_hash
 from app import db
 from app.models import User, Task
 import json
@@ -39,7 +39,7 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
         user = User.query.filter_by(username=username).first()
-        if user and bcrypt.checkpw(password.encode('utf-8'), user.password):
+        if user and check_password_hash(user.password, password):
             login_user(user)
             session.permanent = True
             return redirect(url_for('main.index'))
@@ -80,7 +80,7 @@ def register():
         confirm_password = request.form.get('confirm_password')
         security_question = request.form.get('security_question')
         security_answer = request.form.get('security_answer')
-        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+        hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
         new_user = User(username=username, email=email, password=hashed_password, security_question=security_question,
                         security_answer=security_answer)
         db.session.add(new_user)
@@ -379,7 +379,7 @@ def security_answer():
         security_answer = request.form.get('security_answer')
         user = User.query.filter_by(username=username).first()
         if user and user.security_answer == security_answer:
-            return jsonify({'status': 'success', 'redirect_url': url_for('main.reset_password')})
+            return redirect(url_for('main.reset_password'))
         else:
             return jsonify({'status': 'danger', 'message': 'Incorrect security answer.'})
     return render_template('security_answer.html', security_question=security_question)
@@ -403,7 +403,7 @@ def reset_password():
         username = session.get('username')
         user = User.query.filter_by(username=username).first()
         if user:
-            hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
+            hashed_password = generate_password_hash(new_password, method='pbkdf2:sha256')
             user.password = hashed_password
             db.session.commit()
             return jsonify({'message': 'Your password has been reset successfully.', 'status': 'success'})
@@ -739,6 +739,14 @@ def export_tasks():
         flash(f'Error exporting tasks: {str(e)}', 'error')
         return redirect(url_for('main.index'))
 
+def get_priority_text(priority):
+    """Convert priority number to text"""
+    priority_map = {
+        1: "Low",
+        2: "Medium",
+        3: "High"
+    }
+    return priority_map.get(priority, "Medium")
 
 def generate_markdown_export(tasks):
     """
@@ -1122,13 +1130,3 @@ def build_subtask_content(task, styles, depth):
 
     return elements
 
-
-# Helper function (add this if you don't have it already)
-def get_priority_text(priority):
-    """Convert priority number to text"""
-    priority_map = {
-        1: "Low",
-        2: "Medium",
-        3: "High"
-    }
-    return priority_map.get(priority, "Medium")
