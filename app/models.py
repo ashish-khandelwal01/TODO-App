@@ -5,7 +5,7 @@ from sqlalchemy import ForeignKey
 
 class User(db.Model, UserMixin):
     __tablename__ = "app_user"
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True, nullable=False)
     username = db.Column(db.String(150), unique=True, nullable=False)
     email = db.Column(db.String(150), unique=True, nullable=False)
     password = db.Column(db.String(150), nullable=False)
@@ -14,7 +14,7 @@ class User(db.Model, UserMixin):
 
 
 class Task(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True, nullable=False)
     title = db.Column(db.String(100), nullable=False)
     completed = db.Column(db.Boolean, default=False)
     user_id = db.Column(db.Integer, db.ForeignKey('app_user.id'), nullable=False)
@@ -104,11 +104,6 @@ class Task(db.Model):
         for subtask in self.subtasks:
             subtask.update_depth()
 
-    # def can_add_subtask(self, max_depth=5):
-    #     """Check if we can add a subtask (to prevent infinite nesting)"""
-    #     return self.depth < max_depth
-
-    # Add this method to your Task model class
     def can_add_subtask(self, max_depth):
         """Check if a subtask can be added without exceeding max depth"""
         return self.depth < max_depth - 1
