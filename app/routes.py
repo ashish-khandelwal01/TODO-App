@@ -21,173 +21,16 @@ main = Blueprint('main', __name__)
 # Maximum depth allowed for nested subtasks
 MAX_NESTING_DEPTH = 5
 
-
-def wants_json():
-    """
-    Determine if the client expects a JSON response.
-
-    This function checks multiple indicators to determine if the client is expecting
-    a JSON response rather than an HTML response. This enables the application to
-    serve both web browser clients and API clients from the same endpoints.
-
-    Checks performed:
-        1. Accept header explicitly requesting 'application/json'
-        2. Content-Type header indicating JSON request
-        3. URL parameter 'format=json'
-        4. Flask's is_json property (checks Content-Type)
-        5. Accept header containing 'application/json' (partial match)
-
-    Returns:
-        bool: True if client expects JSON response, False for HTML response
-
-    Example:
-        >>> # API client request
-        >>> headers = {'Accept': 'application/json'}
-        >>> wants_json()  # Returns True
-
-        >>> # Browser request
-        >>> headers = {'Accept': 'text/html,application/xhtml+xml'}
-        >>> wants_json()  # Returns False
-    """
-    return (
-            request.headers.get('Accept') == 'application/json' or
-            request.headers.get('Content-Type') == 'application/json' or
-            request.args.get('format') == 'json' or
-            request.is_json or
-            'application/json' in request.headers.get('Accept', '')
-    )
-
-
-def serialize_task(task):
-    """
-    Convert a Task object to a dictionary representation for JSON serialization.
-
-    This function transforms a SQLAlchemy Task model instance into a Python dictionary
-    that can be safely serialized to JSON for API responses. It includes all relevant
-    task attributes and recursively serializes any nested subtasks.
-
-    Args:
-        task (Task): A SQLAlchemy Task model instance to serialize
-
-    Returns:
-        dict: A dictionary containing all task attributes and serialized subtasks
-
-    Dictionary structure:
-        {
-            'id': int,                                    # Unique task identifier
-            'title': str,                                 # Task title/description
-            'completed': bool,                            # Completion status
-            'priority': int,                              # Priority level (1-3)
-            'parent_task_id': int|None,                   # Parent task ID if subtask
-            'depth': int,                                 # Nesting level (0 for main tasks)
-            'user_id': int,                               # Owner's user ID
-            'is_subtask': bool,                           # Whether this is a subtask
-            'subtask_count': int,                         # Direct subtask count
-            'completed_subtask_count': int,               # Completed direct subtasks
-            'completion_percentage': float,               # Completion % of direct subtasks
-            'total_subtask_count_recursive': int,         # Total subtasks at all levels
-            'completed_subtask_count_recursive': int,     # Total completed at all levels
-            'completion_percentage_recursive': float,     # Overall completion percentage
-            'subtasks': [dict, ...]                       # Recursively serialized subtasks
-        }
-
-    Example:
-        >>> task = Task(id=1, title="Write documentation", completed=False)
-        >>> serialize_task(task)
-        {
-            'id': 1,
-            'title': 'Write documentation',
-            'completed': False,
-            'priority': 2,
-            'parent_task_id': None,
-            'depth': 0,
-            'user_id': 123,
-            'is_subtask': False,
-            'subtask_count': 3,
-            'completed_subtask_count': 1,
-            'completion_percentage': 33.33,
-            'subtasks': [...]
-        }
-    """
-    return {
-        'id': task.id,
-        'title': task.title,
-        'completed': task.completed,
-        'priority': task.priority,
-        'parent_task_id': task.parent_task_id,
-        'depth': task.depth,
-        'user_id': task.user_id,
-        'is_subtask': task.is_subtask,
-        'subtask_count': task.subtask_count,
-        'completed_subtask_count': task.completed_subtask_count,
-        'completion_percentage': task.completion_percentage,
-        'total_subtask_count_recursive': task.total_subtask_count_recursive,
-        'completed_subtask_count_recursive': task.completed_subtask_count_recursive,
-        'completion_percentage_recursive': task.completion_percentage_recursive,
-        'subtasks': [serialize_task(subtask) for subtask in task.subtasks] if hasattr(task, 'subtasks') else []
-    }
-
-
-def serialize_user(user):
-    """
-    Convert a User object to a dictionary representation for JSON serialization.
-
-    Transforms a SQLAlchemy User model instance into a dictionary suitable for
-    JSON serialization, excluding sensitive information like passwords and
-    security answers for security purposes.
-
-    Args:
-        user (User): A SQLAlchemy User model instance to serialize
-
-    Returns:
-        dict: A dictionary containing safe user attributes (no passwords)
-
-    Dictionary structure:
-        {
-            'id': int,                    # Unique user identifier
-            'username': str,              # User's chosen username
-            'email': str,                 # User's email address
-            'security_question': str      # Security question for password recovery
-        }
-
-    Security Notes:
-        - Password hash is deliberately excluded
-        - Security answer is deliberately excluded
-        - Only safe-to-expose attributes are included
-
-    Example:
-        >>> user = User(id=123, username="john_doe", email="john@example.com")
-        >>> serialize_user(user)
-        {
-            'id': 123,
-            'username': 'john_doe',
-            'email': 'john@example.com',
-            'security_question': 'What was your first pet?'
-        }
-    """
-    return {
-        'id': user.id,
-        'username': user.username,
-        'email': user.email,
-        'security_question': user.security_question
-    }
-
-
 @main.route('/login', methods=['GET', 'POST'])
 def login():
     """
-    Handle user authentication for both web and API clients.
-
-    This endpoint supports dual-mode operation:
-    - Web browsers: Renders HTML login form and redirects on success
-    - API clients: Accepts JSON credentials and returns JSON responses
+    Handle user authentication for the web browser.
 
     GET Request:
         - Web: Returns rendered login.html template
-        - API: Returns 405 Method Not Allowed (POST required for API)
 
     POST Request Processing:
-        1. Extracts credentials from JSON (API) or form data (web)
+        1. Extracts credentials from form data (web)
         2. Validates that both username and password are provided
         3. Queries database for user with matching username
         4. Verifies password using secure hash comparison
@@ -195,81 +38,35 @@ def login():
         6. Returns appropriate response based on client type
 
     Request Data (POST):
-        JSON (API clients):
-            {
-                "username": "string (required)",
-                "password": "string (required)"
-            }
-
         Form Data (Web clients):
             - username: string (required)
             - password: string (required)
 
     Returns:
         GET Requests:
-            - Web: Rendered login page (200)
-            - API: Error response (405)
+            - Web: Rendered login page
 
         POST Requests - Success:
-            - Web: Redirect to main index page (302)
-            - API: JSON success response with user data (200)
+            - Web: Redirect to main index page
 
         POST Requests - Failure:
             - Web: Re-rendered login page with error message
-            - API: JSON error response (400/401/500)
-
-    Response Examples:
-        API Success (200):
-        {
-            "success": true,
-            "message": "Login successful",
-            "user": {
-                "id": 123,
-                "username": "john_doe",
-                "email": "john@example.com",
-                "security_question": "What was your first pet?"
-            }
-        }
-
-        API Error (401):
-        {
-            "error": "Login Unsuccessful. Please check username and password"
-        }
 
     Security Features:
         - Passwords stored as secure PBKDF2-SHA256 hashes
         - Session configured as permanent for persistence
         - No password information returned in responses
         - Input validation prevents empty credentials
-
-    Error Conditions:
-        - 400: Missing or invalid request data
-        - 401: Invalid username/password combination
-        - 405: GET request to API endpoint
-        - 500: Server error during authentication
     """
     if request.method == 'GET':
-        if wants_json():
-            return jsonify({'error': 'GET not supported for API login. Use POST.'}), 405
         return render_template('login.html')
 
-        # POST request handling
     try:
-        # Get data from either JSON or form
-        if wants_json():
-            data = request.get_json()
-            if not data:
-                return jsonify({'error': 'No JSON data provided'}), 400
-            username = data.get('username')
-            password = data.get('password')
-        else:
-            username = request.form.get('username')
-            password = request.form.get('password')
+        username = request.form.get('username')
+        password = request.form.get('password')
 
         if not username or not password:
             error_msg = 'Username and password are required'
-            if wants_json():
-                return jsonify({'error': error_msg}), 400
             return render_template('login.html', error_message=error_msg)
 
         user = User.query.filter_by(username=username).first()
@@ -277,23 +74,12 @@ def login():
             login_user(user)
             session.permanent = True
 
-            if wants_json():
-                return jsonify({
-                    'success': True,
-                    'message': 'Login successful',
-                    'user': serialize_user(user)
-                }), 200
-            else:
-                return redirect(url_for('main.index'))
+            return redirect(url_for('main.index'))
         else:
             error_msg = 'Login Unsuccessful. Please check username and password'
-            if wants_json():
-                return jsonify({'error': error_msg}), 401
             return render_template('login.html', error_message=error_msg)
 
     except Exception as e:
-        if wants_json():
-            return jsonify({'error': str(e)}), 500
         return render_template('login.html', error_message='An error occurred during login')
 
 
@@ -303,13 +89,13 @@ def logout():
     """
     Terminate the current user session and log out the user.
 
-    This endpoint handles user logout for both web and API clients. It clears
+    This endpoint handles user logout for the web. It clears
     the current user session using Flask-Login's logout_user() function and
     provides appropriate responses based on the client type.
 
     Authentication:
         - Requires active user session (@login_required decorator)
-        - Redirects to login page if user not authenticated
+        - Redirects to the login page if the user is not authenticated
 
     Process:
         1. Calls Flask-Login's logout_user() to clear session
@@ -318,66 +104,38 @@ def logout():
 
     Returns:
         Web Clients:
-            - 302 Redirect to login page
-
-        API Clients Success (200):
-            {
-                "success": true,
-                "message": "Logout successful"
-            }
-
-        API Clients Error (500):
-            {
-                "error": "Error message describing what went wrong"
-            }
+            - Redirect to login page
 
     Side Effects:
         - Clears user session data
         - Removes authentication state
         - User will need to log in again for protected routes
 
-    Error Conditions:
-        - 401: User not authenticated (handled by @login_required)
-        - 500: Server error during logout process
-
     Example Usage:
         # Web browser
         GET /logout -> Redirects to /login
-
-        # API client
-        GET /logout
-        Headers: Accept: application/json
-        Response: {"success": true, "message": "Logout successful"}
     """
     try:
         logout_user()
-        if wants_json():
-            return jsonify({
-                'success': True,
-                'message': 'Logout successful'
-            }), 200
         return redirect(url_for('main.login'))
     except Exception as e:
-        if wants_json():
-            return jsonify({'error': str(e)}), 500
         return redirect(url_for('main.login'))
 
 
 @main.route('/register', methods=['GET', 'POST'])
 def register():
     """
-    Handle new user registration for both web and API clients.
+    Handle new user registration for web clients.
 
     This endpoint manages the complete user registration process, including
     validation, duplicate checking, secure password hashing, and account creation.
-    It supports both web form submissions and JSON API requests.
+    It supports the web form submissions.
 
     GET Request:
         - Web: Returns registration form template
-        - API: Returns 405 Method Not Allowed (POST required)
 
     POST Request Processing:
-        1. Extracts registration data from JSON or form
+        1. Extracts registration data from form
         2. Validates all required fields are present
         3. Checks for existing username conflicts
         4. Checks for existing email conflicts
@@ -386,14 +144,6 @@ def register():
         7. Returns success response or redirect
 
     Request Data (POST):
-        JSON (API clients):
-            {
-                "username": "string (required) - Unique identifier",
-                "email": "string (required) - User's email address",
-                "password": "string (required) - Plain text password",
-                "security_question": "string (required) - Recovery question",
-                "security_answer": "string (required) - Answer to question"
-            }
 
         Form Data (Web clients):
             - username: string (required)
@@ -405,39 +155,18 @@ def register():
     Returns:
         GET Requests:
             - Web: Rendered registration form (200)
-            - API: Method not allowed error (405)
 
         POST Success:
             - Web: Redirect to login page (302)
-            - API: JSON success with user data (201)
 
         POST Failure:
             - Web: Re-rendered form with error message
-            - API: JSON error response (400/409/500)
-
-    Response Examples:
-        API Success (201):
-        {
-            "success": true,
-            "message": "Registration successful",
-            "user": {
-                "id": 124,
-                "username": "new_user",
-                "email": "new_user@example.com",
-                "security_question": "What city were you born in?"
-            }
-        }
-
-        API Error (409 - Conflict):
-        {
-            "error": "Username already exists"
-        }
 
     Security Features:
         - Passwords hashed with PBKDF2-SHA256 before storage
         - Username and email uniqueness enforced
         - Security question/answer stored for password recovery
-        - No sensitive data returned in API responses
+        - No sensitive data returned
         - Database rollback on registration errors
 
     Validation Rules:
@@ -446,62 +175,31 @@ def register():
         - Email must be unique across all users
         - Security question and answer required for account recovery
 
-    Error Conditions:
-        - 400: Missing required fields or invalid data
-        - 405: GET request to API endpoint
-        - 409: Username or email already exists
-        - 500: Database error during user creation
-
     Database Operations:
         - Queries User table for existing username/email
         - Creates new User record with hashed password
         - Commits transaction or rolls back on error
     """
     if request.method == 'GET':
-        if wants_json():
-            return jsonify({'error': 'GET not supported for API registration. Use POST.'}), 405
         return render_template('register.html')
 
-        # POST request handling
     try:
-        # Get data from either JSON or form
-        if wants_json():
-            data = request.get_json()
-            if not data:
-                return jsonify({'error': 'No JSON data provided'}), 400
-
-            username = data.get('username')
-            email = data.get('email')
-            password = data.get('password')
-            security_question = data.get('security_question')
-            security_answer = data.get('security_answer')
-
-            # Validate required fields
-            required_fields = ['username', 'email', 'password', 'security_question', 'security_answer']
-            for field in required_fields:
-                if not data.get(field):
-                    return jsonify({'error': f'{field} is required'}), 400
-        else:
-            username = request.form.get('username')
-            email = request.form.get('email')
-            password = request.form.get('password')
-            security_question = request.form.get('security_question')
-            security_answer = request.form.get('security_answer')
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        security_question = request.form.get('security_question')
+        security_answer = request.form.get('security_answer')
 
         # Check if username already exists
         existing_user = User.query.filter_by(username=username).first()
         if existing_user:
             error_msg = 'Username already exists'
-            if wants_json():
-                return jsonify({'error': error_msg}), 409
             return render_template('register.html', error_message=error_msg)
 
         # Check if email already exists
         existing_email = User.query.filter_by(email=email).first()
         if existing_email:
             error_msg = 'Email already exists'
-            if wants_json():
-                return jsonify({'error': error_msg}), 409
             return render_template('register.html', error_message=error_msg)
 
         # Create new user
@@ -517,19 +215,10 @@ def register():
         db.session.add(new_user)
         db.session.commit()
 
-        if wants_json():
-            return jsonify({
-                'success': True,
-                'message': 'Registration successful',
-                'user': serialize_user(new_user)
-            }), 201
-        else:
-            return redirect(url_for('main.login'))
+        return redirect(url_for('main.login'))
 
     except Exception as e:
         db.session.rollback()
-        if wants_json():
-            return jsonify({'error': str(e)}), 500
         return render_template('register.html', error_message='Registration failed')
 
 
@@ -541,8 +230,8 @@ def index():
 
     This is the primary endpoint for the task management application. It retrieves
     and displays all main tasks (non-subtasks) for the authenticated user with
-    support for sorting and priority filtering. The endpoint serves both web
-    browsers and API clients.
+    support for sorting and priority filtering. The endpoint serves the web
+    browsers.
 
     Authentication:
         - Requires active user session (@login_required decorator)
@@ -566,7 +255,6 @@ def index():
         3. Applies priority filter if specified
         4. Sorts tasks according to sort_by parameter
         5. Eager loads subtasks to prevent N+1 query issues
-        6. Returns data in appropriate format (HTML/JSON)
 
     Returns:
         Web Clients:
@@ -576,25 +264,6 @@ def index():
                 * sort_by: Current sort parameter
                 * filter_by: Current filter parameter
                 * max_depth: Maximum nesting level allowed
-
-        API Clients (200):
-            {
-                "success": true,
-                "tasks": [
-                    {
-                        "id": 1,
-                        "title": "Complete project",
-                        "completed": false,
-                        "priority": 3,
-                        "subtasks": [...],
-                        ...
-                    }
-                ],
-                "total_count": 5,
-                "sort_by": "priority",
-                "filter_by": "3",
-                "max_depth": 5
-            }
 
     Task Structure:
         - Only main tasks (depth 0) are returned at the top level
@@ -616,21 +285,6 @@ def index():
         - Uses eager loading for subtasks to prevent N+1 queries
         - Filters at database level for efficiency
         - Sorting performed in Python for flexibility
-
-    Error Conditions:
-        - 401: User not authenticated (handled by @login_required)
-        - 500: Database error during task retrieval
-
-    Example Usage:
-        # Get all tasks sorted by priority
-        GET / -> Returns all tasks, high priority first
-
-        # Get only high priority tasks sorted by title
-        GET /?filter_by=3&sort_by=title
-
-        # API request for filtered tasks
-        GET /?format=json&filter_by=2
-        Headers: Accept: application/json
     """
     try:
         sort_by = request.args.get('sort_by', 'priority')
@@ -652,16 +306,6 @@ def index():
         for task in tasks:
             task.subtasks.all()
 
-        if wants_json():
-            return jsonify({
-                'success': True,
-                'tasks': [serialize_task(task) for task in tasks],
-                'total_count': len(tasks),
-                'sort_by': sort_by,
-                'filter_by': filter_by,
-                'max_depth': MAX_NESTING_DEPTH
-            }), 200
-
         # HTML response
         suggested_tasks = [
             "Buy groceries", "Read a book", "Exercise", "Clean the house", "Write a blog post",
@@ -671,8 +315,6 @@ def index():
                                sort_by=sort_by, filter_by=filter_by, max_depth=MAX_NESTING_DEPTH)
 
     except Exception as e:
-        if wants_json():
-            return jsonify({'error': str(e)}), 500
         flash('An error occurred while loading tasks', 'error')
         return render_template('index.html', tasks=[], suggested_tasks=[])
 
@@ -684,8 +326,7 @@ def add():
     Create new tasks or subtasks with validation and depth control.
 
     This endpoint handles the creation of both main tasks and nested subtasks.
-    It includes comprehensive validation, depth limiting, and supports both
-    web form submissions and JSON API requests.
+    It includes comprehensive validation, depth limiting, and supports web form submissions.
 
     Authentication:
         - Requires active user session (@login_required decorator)
@@ -693,10 +334,9 @@ def add():
 
     GET Request:
         - Web: Returns add_task.html form template
-        - API: Returns 405 Method Not Allowed (POST required)
 
     POST Request Processing:
-        1. Extracts task data from JSON or form
+        1. Extracts task data from form
         2. Validates required fields (title is mandatory)
         3. Processes parent_task_id for subtask creation
         4. Validates parent task ownership and existence
@@ -706,12 +346,6 @@ def add():
         8. Returns success response or redirects appropriately
 
     Request Data (POST):
-        JSON (API clients):
-            {
-                "title": "string (required) - Task description",
-                "priority": "integer (optional, default=1) - Priority level 1-3",
-                "parent_task_id": "integer (optional) - Parent task for subtasks"
-            }
 
         Form Data (Web clients):
             - title: string (required)
@@ -728,37 +362,12 @@ def add():
     Returns:
         GET Requests:
             - Web: Rendered task creation form (200)
-            - API: Method not allowed error (405)
 
         POST Success:
             - Web: Redirect to index (main task) or parent details (subtask)
-            - API: JSON success with created task data (201)
 
         POST Failure:
             - Web: Redirect with flash error message
-            - API: JSON error response (400/500)
-
-    Response Examples:
-        API Success (201):
-        {
-            "success": true,
-            "message": "Task created successfully",
-            "task": {
-                "id": 125,
-                "title": "New task",
-                "completed": false,
-                "priority": 2,
-                "parent_task_id": null,
-                "depth": 0,
-                "user_id": 123,
-                "subtasks": []
-            }
-        }
-
-        API Error (400):
-        {
-            "error": "Maximum nesting depth of 5 levels reached"
-        }
 
     Validation Rules:
         - title: Required, non-empty string
@@ -772,11 +381,6 @@ def add():
         - Input sanitization and type conversion
         - Database rollback on errors
 
-    Error Conditions:
-        - 400: Missing title, invalid parent task, or depth limit exceeded
-        - 401: User not authenticated (handled by @login_required)
-        - 500: Database error during task creation
-
     Database Operations:
         - Queries parent task for validation and depth calculation
         - Creates new Task record with calculated depth
@@ -787,32 +391,16 @@ def add():
         - Creating subtask -> redirects to parent task details page
         - Error conditions -> redirects to appropriate page with flash message
     """
-    # Debug: Print all form data
 
     if request.method == 'GET':
-        if wants_json():
-            return jsonify({'error': 'GET not supported for API task creation. Use POST.'}), 405
         return render_template('add_task.html')  # You may need to create this template
-        # POST request handling
     try:
-        # Get data from either JSON or form
-        if wants_json():
-            data = request.get_json()
-            if not data:
-                return jsonify({'error': 'No JSON data provided'}), 400
-
-            title = data.get('title')
-            priority = int(data.get('priority', 1))
-            parent_task_id = data.get('parent_task_id')
-        else:
-            title = request.form.get('title')
-            priority = int(request.form.get('priority', 1))
-            parent_task_id = request.form.get('parent_task_id')
+        title = request.form.get('title')
+        priority = int(request.form.get('priority', 1))
+        parent_task_id = request.form.get('parent_task_id')
 
         if not title:
             error_msg = 'Task title is required'
-            if wants_json():
-                return jsonify({'error': error_msg}), 400
             flash(error_msg + '!', 'error')
             return redirect(url_for('main.index'))
 
@@ -831,15 +419,11 @@ def add():
             parent_task = Task.query.get(parent_task_id)
             if not parent_task or parent_task.user_id != current_user.id:
                 error_msg = 'Invalid parent task or access denied'
-                if wants_json():
-                    return jsonify({'error': error_msg}), 400
                 flash(error_msg + '!', 'error')
                 return redirect(url_for('main.index'))
 
             if not parent_task.can_add_subtask(MAX_NESTING_DEPTH):
                 error_msg = f'Maximum nesting depth of {MAX_NESTING_DEPTH} levels reached'
-                if wants_json():
-                    return jsonify({'error': error_msg}), 400
                 flash(error_msg + '!', 'error')
                 return redirect(url_for('main.task_details', task_id=parent_task_id))
 
@@ -857,13 +441,6 @@ def add():
         db.session.add(new_task)
         db.session.commit()
 
-        if wants_json():
-            return jsonify({
-                'success': True,
-                'message': 'Task created successfully',
-                'task': serialize_task(new_task)
-            }), 201
-
         # HTML redirect logic
         if parent_task_id:
             flash('Subtask added successfully!', 'success')
@@ -874,8 +451,6 @@ def add():
 
     except Exception as e:
         db.session.rollback()
-        if wants_json():
-            return jsonify({'error': str(e)}), 500
         flash('An error occurred while creating the task', 'error')
         return redirect(url_for('main.index'))
 
@@ -916,23 +491,6 @@ def complete(task_id):
             - Redirect to parent task details (if subtask)
             - Redirect to main index page (if main task)
 
-        API Clients Success (200):
-            {
-                "success": true,
-                "message": "Task completed" | "Task marked as incomplete",
-                "task": {
-                    "id": 123,
-                    "title": "Task title",
-                    "completed": true,
-                    "subtasks": [...]
-                }
-            }
-
-        Error Response (404):
-            {
-                "error": "Task not found or access denied"
-            }
-
     Navigation Logic (Web):
         - Subtasks: Redirects to root task details page for context
         - Main tasks: Redirects to index page
@@ -948,11 +506,6 @@ def complete(task_id):
         - Recursive function processes subtasks in memory
         - Single commit for all changes reduces database overhead
 
-    Error Conditions:
-        - 401: User not authenticated (handled by @login_required)
-        - 404: Task not found or user lacks permission
-        - 500: Database error during status update
-
     Database Operations:
         - SELECT: Retrieves task and validates ownership
         - UPDATE: Changes completion status recursively
@@ -961,17 +514,10 @@ def complete(task_id):
     Example Usage:
         # Complete a main task (web)
         GET /complete/123 -> Redirects to index with task completed
-
-        # Toggle subtask completion (API)
-        GET /complete/456
-        Headers: Accept: application/json
-        Response: {"success": true, "message": "Task completed", ...}
     """
     try:
         task = Task.query.get(task_id)
         if not task or task.user_id != current_user.id:
-            if wants_json():
-                return jsonify({'error': 'Task not found or access denied'}), 404
             return redirect(url_for('main.index'))
 
         def toggle_subtasks(task_obj, completed_status):
@@ -983,14 +529,6 @@ def complete(task_id):
         toggle_subtasks(task, task.completed)
         db.session.commit()
 
-        if wants_json():
-            return jsonify({
-                'success': True,
-                'message': f'Task {"completed" if task.completed else "marked as incomplete"}',
-                'task': serialize_task(task)
-            }), 200
-
-        # HTML redirect logic
         if task.parent_task_id:
             root_task = task.root_task
             return redirect(url_for('main.task_details', task_id=root_task.id))
@@ -998,8 +536,6 @@ def complete(task_id):
 
     except Exception as e:
         db.session.rollback()
-        if wants_json():
-            return jsonify({'error': str(e)}), 500
         return redirect(url_for('main.index'))
 
 
@@ -1039,17 +575,6 @@ def delete(task_id):
             - Redirect to parent task details (if deleting subtask)
             - Redirect to main index page (if deleting main task)
 
-        API Clients Success (200):
-            {
-                "success": true,
-                "message": "Task deleted successfully"
-            }
-
-        Error Response (404):
-            {
-                "error": "Task not found or access denied"
-            }
-
     Navigation Logic (Web):
         - Subtasks: Redirects to root task details page
         - Main tasks: Redirects to index page
@@ -1065,11 +590,6 @@ def delete(task_id):
         - Database transaction ensures atomic operation
         - Rollback protection maintains data consistency
 
-    Error Conditions:
-        - 401: User not authenticated (handled by @login_required)
-        - 404: Task not found or user lacks permission
-        - 500: Database error during deletion
-
     Database Operations:
         - SELECT: Retrieves task and validates ownership
         - DELETE: Removes task (cascades to subtasks automatically)
@@ -1083,17 +603,10 @@ def delete(task_id):
     Example Usage:
         # Delete a main task (web)
         GET /delete/123 -> Redirects to index, task and subtasks removed
-
-        # Delete subtask (API)
-        GET /delete/456
-        Headers: Accept: application/json
-        Response: {"success": true, "message": "Task deleted successfully"}
     """
     try:
         task = Task.query.get(task_id)
         if not task or task.user_id != current_user.id:
-            if wants_json():
-                return jsonify({'error': 'Task not found or access denied'}), 404
             return redirect(url_for('main.index'))
 
         # Store parent task ID and root task ID before deletion
@@ -1103,21 +616,12 @@ def delete(task_id):
         db.session.delete(task)
         db.session.commit()
 
-        if wants_json():
-            return jsonify({
-                'success': True,
-                'message': 'Task deleted successfully'
-            }), 200
-
-        # HTML redirect logic
         if parent_id:
             return redirect(url_for('main.task_details', task_id=root_task_id))
         return redirect(url_for('main.index'))
 
     except Exception as e:
         db.session.rollback()
-        if wants_json():
-            return jsonify({'error': str(e)}), 500
         return redirect(url_for('main.index'))
 
 
@@ -1143,7 +647,7 @@ def task_details(task_id):
         2. Validates task exists and belongs to current user
         3. Builds breadcrumb trail from root to current task
         4. Recursively loads all subtasks for complete hierarchy
-        5. Returns data in appropriate format (HTML/JSON)
+        5. Returns data in appropriate format (HTML)
 
     Breadcrumb Navigation:
         - Shows path from root task to current task
@@ -1164,35 +668,6 @@ def task_details(task_id):
                 * subtasks: Hierarchical list of subtasks
                 * breadcrumbs: Navigation trail from root
                 * max_depth: Maximum allowed nesting level
-
-        API Clients Success (200):
-            {
-                "success": true,
-                "task": {
-                    "id": 123,
-                    "title": "Parent Task",
-                    "completed": false,
-                    "priority": 2,
-                    "subtasks": [
-                        {
-                            "id": 124,
-                            "title": "Subtask 1",
-                            "depth": 1,
-                            "subtasks": [...]
-                        }
-                    ],
-                    ...
-                },
-                "breadcrumbs": [
-                    {"id": 100, "title": "Root Task", "depth": 0},
-                    {"id": 123, "title": "Current Task", "depth": 1}
-                ]
-            }
-
-        Error Response (404):
-            {
-                "error": "Task not found or access denied"
-            }
 
     Template Data (Web):
         - task: Full task object with all properties
@@ -1217,25 +692,14 @@ def task_details(task_id):
         - Current task highlighted in breadcrumb trail
         - Root task always accessible from breadcrumbs
 
-    Error Conditions:
-        - 401: User not authenticated (handled by @login_required)
-        - 404: Task not found or user lacks permission
-        - 500: Database error during data retrieval
-
     Example Usage:
         # View task details (web)
         GET /task/123 -> Renders detailed task page with subtasks
 
-        # Get task data (API)
-        GET /task/123
-        Headers: Accept: application/json
-        Response: Complete task data with breadcrumbs
     """
     try:
         task = Task.query.get(task_id)
         if not task or task.user_id != current_user.id:
-            if wants_json():
-                return jsonify({'error': 'Task not found or access denied'}), 404
             return redirect(url_for('main.index'))
 
         # Get breadcrumbs
@@ -1243,13 +707,6 @@ def task_details(task_id):
         if task.parent_task_id:
             breadcrumbs = task.get_ancestors()
             breadcrumbs.append(task)
-
-        if wants_json():
-            return jsonify({
-                'success': True,
-                'task': serialize_task(task),
-                'breadcrumbs': [serialize_task(ancestor) for ancestor in breadcrumbs]
-            }), 200
 
         # HTML response - load subtasks recursively
         def load_subtasks_recursive(parent_task):
@@ -1263,8 +720,6 @@ def task_details(task_id):
                                breadcrumbs=breadcrumbs, max_depth=MAX_NESTING_DEPTH)
 
     except Exception as e:
-        if wants_json():
-            return jsonify({'error': str(e)}), 500
         return redirect(url_for('main.index'))
 
 
@@ -1363,15 +818,9 @@ def check_username():
         username=jane_smith
     """
     try:
-        if wants_json():
-            data = request.get_json()
-            if not data or 'username' not in data:
-                return jsonify({'error': 'Username is required'}), 400
-            username = data['username']
-        else:
-            username = request.form.get('username')
-            if not username:
-                return jsonify({'error': 'Username is required'}), 400
+        username = request.form.get('username')
+        if not username:
+            return jsonify({'error': 'Username is required'}), 400
 
         existing_user = User.query.filter_by(username=username).first()
 
@@ -1391,7 +840,7 @@ def get_suggested_tasks():
     Retrieve predefined task suggestions to inspire users.
 
     This endpoint provides a curated list of common task suggestions that users
-    can quickly add to their task lists. It helps overcome the "blank page" problem
+    can quickly add to their task lists. It helps overco    me the "blank page" problem
     and provides inspiration for task management.
 
     Authentication:
@@ -1410,24 +859,7 @@ def get_suggested_tasks():
         - Creativity: "Cook a new recipe"
 
     Returns:
-        API Clients Success (200):
-            {
-                "success": true,
-                "suggested_tasks": [
-                    "Buy groceries",
-                    "Read a book",
-                    "Exercise",
-                    "Clean the house",
-                    "Write a blog post",
-                    "Learn a new skill",
-                    "Call a friend",
-                    "Plan a trip",
-                    "Cook a new recipe",
-                    "Organize your workspace"
-                ]
-            }
-
-        Web Clients (fallback JSON response):
+        Web Clients:
             {
                 "suggested_tasks": [...]
             }
@@ -1455,38 +887,12 @@ def get_suggested_tasks():
         - Category-based filtering
         - Seasonal or contextual suggestions
         - User-submitted suggestion pool
-
-    Error Conditions:
-        - 401: User not authenticated (handled by @login_required)
-        - 500: Unlikely server error
-
-    Example Usage:
-        # Get suggestions for task creation interface
-        GET /suggested_tasks
-        Headers: Accept: application/json
-
-        Response:
-        {
-            "success": true,
-            "suggested_tasks": [
-                "Buy groceries",
-                "Read a book",
-                ...
-            ]
-        }
     """
     suggested_tasks = [
         "Buy groceries", "Read a book", "Exercise", "Clean the house", "Write a blog post",
         "Learn a new skill", "Call a friend", "Plan a trip", "Cook a new recipe", "Organize your workspace"
     ]
 
-    if wants_json():
-        return jsonify({
-            'success': True,
-            'suggested_tasks': suggested_tasks
-        }), 200
-
-    # For HTML requests, this might be part of the main index page
     return jsonify({'suggested_tasks': suggested_tasks})
 
 
@@ -1501,11 +907,9 @@ def forgot_password():
 
     HTTP Methods:
         - GET: Display password recovery form (web clients)
-        - POST: Process username and initiate recovery
 
     GET Request:
         - Web: Returns forgot_password.html template
-        - API: Returns 405 Method Not Allowed
 
     POST Request Processing:
         1. Extracts username from request (JSON or form data)
@@ -1513,15 +917,6 @@ def forgot_password():
         3. Searches database for user with matching username
         4. If found, stores username and security question in session
         5. Proceeds to security question verification step
-
-    Request Data (POST):
-        JSON (API clients):
-            {
-                "username": "string (required) - Username for account recovery"
-            }
-
-        Form Data (Web clients):
-            - username: string (required) - Username to recover
 
     Session Management:
         - Stores username in session for subsequent steps
@@ -1532,29 +927,12 @@ def forgot_password():
     Returns:
         GET Requests:
             - Web: Rendered forgot password form (200)
-            - API: Method not allowed error (405)
 
         POST Success:
             - Web: Redirect to security question page
-            - API: JSON with security question (200)
 
         POST Failure:
             - Web: Re-rendered form with error message
-            - API: JSON error response (400/404/500)
-
-    Response Examples:
-        API Success (200):
-        {
-            "success": true,
-            "message": "User found",
-            "security_question": "What city were you born in?",
-            "next_step": "security_answer"
-        }
-
-        API Error (404):
-        {
-            "error": "Username not found"
-        }
 
     Security Features:
         - Username existence confirmed before revealing security question
@@ -1574,43 +952,20 @@ def forgot_password():
         - No email or other sensitive data exposed
         - Session timeout provides additional security
 
-    Error Conditions:
-        - 400: Missing username parameter
-        - 404: Username not found in database
-        - 405: GET request to API endpoint
-        - 500: Database or session error
-
     Example Usage:
         # Start password recovery (web)
         POST /forgot_password
         Form data: username=john_doe
         -> Redirects to security question page
-
-        # API recovery initiation
-        POST /forgot_password
-        {
-            "username": "john_doe"
-        }
-        -> Returns security question for next step
     """
     if request.method == 'GET':
-        if wants_json():
-            return jsonify({'error': 'GET not supported for API. Use POST.'}), 405
         return render_template('forgot_password.html')
 
     try:
-        if wants_json():
-            data = request.get_json()
-            if not data:
-                return jsonify({'error': 'No JSON data provided'}), 400
-            username = data.get('username')
-        else:
-            username = request.form.get('username')
+        username = request.form.get('username')
 
         if not username:
             error_msg = 'Username is required'
-            if wants_json():
-                return jsonify({'error': error_msg}), 400
             return render_template('forgot_password.html', error_message=error_msg)
 
         user = User.query.filter_by(username=username).first()
@@ -1618,24 +973,12 @@ def forgot_password():
             session['username'] = username
             session['security_question'] = user.security_question
 
-            if wants_json():
-                return jsonify({
-                    'success': True,
-                    'message': 'User found',
-                    'security_question': user.security_question,
-                    'next_step': 'security_answer'
-                }), 200
-            else:
-                return redirect(url_for('main.security_answer'))
+            return redirect(url_for('main.security_answer'))
         else:
             error_msg = 'Username not found'
-            if wants_json():
-                return jsonify({'error': error_msg}), 404
             return render_template('forgot_password.html', error_message=error_msg)
 
     except Exception as e:
-        if wants_json():
-            return jsonify({'error': str(e)}), 500
         return render_template('forgot_password.html', error_message='An error occurred')
 
 
@@ -1653,100 +996,48 @@ def security_answer() -> Union[str, Tuple[Dict[str, Any], int]]:
 
     Returns:
         GET Request:
-            - JSON: Security question data with 200 status
             - HTML: Rendered security answer form template
             - Redirects to forgot_password if session is invalid
 
         POST Request:
-            - JSON: Success/error response with appropriate status codes
             - HTML: Redirects to reset_password on success, re-renders form on error
-
-    HTTP Status Codes:
-        200: Success - security answer verified
-        400: Bad Request - missing required data
-        401: Unauthorized - incorrect security answer
-        404: Not Found - user not found
-        500: Internal Server Error
 
     Security Features:
         - Session-based state management
         - Direct string comparison for security answers (consider case sensitivity)
         - Automatic session cleanup on errors
     """
-    # Retrieve session data from previous password reset step
     username: Optional[str] = session.get('username')
     security_question: Optional[str] = session.get('security_question')
 
     if request.method == 'GET':
-        # Handle JSON API requests for security question retrieval
-        if wants_json():
-            if not username or not security_question:
-                return jsonify({'error': 'Session expired. Start password reset again.'}), 400
-            return jsonify({
-                'security_question': security_question,
-                'username': username
-            }), 200
-
-        # Handle HTML requests - redirect if session is invalid
         if not username or not security_question:
             return redirect(url_for('main.forgot_password'))
         return render_template('security_answer.html', security_question=security_question)
 
-    # Handle POST request for security answer verification
     try:
-        # Parse request data based on content type
-        if wants_json():
-            data = request.get_json()
-            if not data:
-                return jsonify({'error': 'No JSON data provided'}), 400
-            security_answer_input: Optional[str] = data.get('security_answer')
-            # Allow username override from request for API flexibility
-            username = data.get('username', username)
-        else:
-            # Extract from HTML form data
-            security_answer_input: Optional[str] = request.form.get('security_answer')
+        security_answer_input: Optional[str] = request.form.get('security_answer')
 
-        # Validate required input
         if not security_answer_input:
             error_msg = 'Security answer is required'
-            if wants_json():
-                return jsonify({'error': error_msg}), 400
             return render_template('security_answer.html',
                                    security_question=security_question,
                                    error_message=error_msg)
 
-        # Fetch user from database
         user = User.query.filter_by(username=username).first()
         if not user:
-            error_msg = 'User not found'
-            if wants_json():
-                return jsonify({'error': error_msg}), 404
             return redirect(url_for('main.forgot_password'))
 
-        # Verify security answer (case-sensitive comparison)
         if user.security_answer == security_answer_input:
-            # Success - proceed to password reset
-            if wants_json():
-                return jsonify({
-                    'success': True,
-                    'message': 'Security answer verified',
-                    'next_step': 'reset_password'
-                }), 200
-            else:
-                return redirect(url_for('main.reset_password'))
+            return redirect(url_for('main.reset_password'))
         else:
             # Incorrect answer
             error_msg = 'Incorrect security answer'
-            if wants_json():
-                return jsonify({'error': error_msg}), 401
             return render_template('security_answer.html',
                                    security_question=security_question,
                                    error_message=error_msg)
 
     except Exception as e:
-        # Handle unexpected errors gracefully
-        if wants_json():
-            return jsonify({'error': str(e)}), 500
         return render_template('security_answer.html',
                                security_question=security_question,
                                error_message='An error occurred')
@@ -1771,18 +1062,10 @@ def reset_password() -> Union[str, Tuple[Dict[str, Any], int]]:
 
     Returns:
         GET Request:
-            - JSON: Confirmation that user is ready for password reset
             - HTML: Password reset form template
 
         POST Request:
-            - JSON: Success/error response
             - HTML: Redirects to login on success with flash message
-
-    HTTP Status Codes:
-        200: Success - password updated
-        400: Bad Request - missing new password or session expired
-        404: Not Found - user not found
-        500: Internal Server Error
 
     Database Operations:
         - Updates user.password field with hashed password
@@ -1792,50 +1075,20 @@ def reset_password() -> Union[str, Tuple[Dict[str, Any], int]]:
     username: Optional[str] = session.get('username')
 
     if request.method == 'GET':
-        # Provide password reset form or API confirmation
-        if wants_json():
-            if not username:
-                return jsonify({'error': 'Session expired. Start password reset again.'}), 400
-            return jsonify({
-                'message': 'Ready for password reset',
-                'username': username
-            }), 200
-
-        # Redirect to start of flow if session is invalid
         if not username:
             return redirect(url_for('main.forgot_password'))
         return render_template('reset_password.html')
-
-    # Handle POST request for password update
     try:
-        # Parse new password from request
-        if wants_json():
-            data = request.get_json()
-            if not data:
-                return jsonify({'error': 'No JSON data provided'}), 400
-            new_password: Optional[str] = data.get('new_password')
-            # Allow username override for API flexibility
-            username = data.get('username', username)
-        else:
-            new_password: Optional[str] = request.form.get('new_password')
+        new_password: Optional[str] = request.form.get('new_password')
 
-        # Validate required password input
         if not new_password:
             error_msg = 'New password is required'
-            if wants_json():
-                return jsonify({'error': error_msg}), 400
             return render_template('reset_password.html', error_message=error_msg)
 
-        # Fetch user record for password update
         user = User.query.filter_by(username=username).first()
         if not user:
-            error_msg = 'User not found'
-            if wants_json():
-                return jsonify({'error': error_msg}), 404
             return redirect(url_for('main.forgot_password'))
 
-        # Hash the new password using PBKDF2-SHA256
-        # This provides strong protection against rainbow table attacks
         hashed_password: str = generate_password_hash(new_password, method='pbkdf2:sha256')
 
         # Update user's password in database
@@ -1848,20 +1101,11 @@ def reset_password() -> Union[str, Tuple[Dict[str, Any], int]]:
 
         # Return success response
         success_msg = 'Password has been reset successfully'
-        if wants_json():
-            return jsonify({
-                'success': True,
-                'message': success_msg
-            }), 200
-        else:
-            flash(success_msg, 'success')
-            return redirect(url_for('main.login'))
+        flash(success_msg, 'success')
+        return redirect(url_for('main.login'))
 
     except Exception as e:
-        # Ensure database consistency on errors
         db.session.rollback()
-        if wants_json():
-            return jsonify({'error': str(e)}), 500
         return render_template('reset_password.html',
                                error_message='An error occurred during password reset')
 
@@ -1890,21 +1134,14 @@ def edit(task_id: int) -> Union[str, Tuple[Dict[str, Any], int]]:
 
     Returns:
         GET Request:
-            - JSON: Task data object for editing
             - HTML: Edit form template populated with current values
 
         POST/PUT/PATCH Request:
-            - JSON: Updated task object with success confirmation
             - HTML: Redirects to appropriate view based on task hierarchy
 
     Navigation Logic:
         - Subtasks: Redirects to root task details page for context
         - Main tasks: Redirects to main index page
-
-    HTTP Status Codes:
-        200: Success - task retrieved/updated
-        404: Not Found - task doesn't exist or access denied
-        500: Internal Server Error
     """
     try:
         # Fetch task with ownership verification
@@ -1912,54 +1149,20 @@ def edit(task_id: int) -> Union[str, Tuple[Dict[str, Any], int]]:
 
         # Ensure task exists and user has permission to edit it
         if not task or task.user_id != current_user.id:
-            if wants_json():
-                return jsonify({'error': 'Task not found or access denied'}), 404
             return redirect(url_for('main.index'))
 
         if request.method == 'GET':
             # Return task data for editing interface
-            if wants_json():
-                return jsonify({
-                    'success': True,
-                    'task': serialize_task(task)
-                }), 200
             return render_template('edit_task.html', task=task)
 
-        # Handle task updates (POST/PUT/PATCH)
-        if wants_json():
-            # Parse JSON request for API updates
-            data = request.get_json()
-            if not data:
-                return jsonify({'error': 'No JSON data provided'}), 400
-
-            # Apply partial updates - only modify provided fields
-            if 'title' in data:
-                task.title = data['title']
-            if 'priority' in data:
-                # Ensure priority is converted to integer
-                task.priority = int(data['priority'])
-            if 'completed' in data:
-                # Ensure completed status is boolean
-                task.completed = bool(data['completed'])
-        else:
-            # Handle HTML form updates
-            if 'title' in request.form:
-                task.title = request.form.get('title')
-            if 'priority' in request.form:
-                task.priority = int(request.form.get('priority'))
-            # Note: HTML forms don't typically send 'completed' in edit context
+        if 'title' in request.form:
+            task.title = request.form.get('title')
+        if 'priority' in request.form:
+            task.priority = int(request.form.get('priority'))
 
         # Commit changes to database
         db.session.commit()
 
-        if wants_json():
-            return jsonify({
-                'success': True,
-                'message': 'Task updated successfully',
-                'task': serialize_task(task)
-            }), 200
-
-        # HTML navigation logic based on task hierarchy
         if task.parent_task_id:
             # For subtasks, navigate to root task for context
             root_task = task.root_task
@@ -1968,10 +1171,7 @@ def edit(task_id: int) -> Union[str, Tuple[Dict[str, Any], int]]:
         return redirect(url_for('main.index'))
 
     except Exception as e:
-        # Ensure database consistency on errors
         db.session.rollback()
-        if wants_json():
-            return jsonify({'error': str(e)}), 500
         return redirect(url_for('main.index'))
 
 
@@ -2010,7 +1210,6 @@ def add_suggested(task_title: str) -> str:
         - Requires authentication (@login_required)
         - Task automatically assigned to current user
     """
-    # Extract priority from form data, default to low priority
     priority: str = request.form.get('priority', '1')
 
     # Create new task with suggested title and user ownership
@@ -2030,6 +1229,7 @@ def add_suggested(task_title: str) -> str:
 
 
 @main.route('/import_markdown', methods=['POST'])
+@login_required
 def import_markdown() -> Union[str, Tuple[Dict[str, Any], int]]:
     """
     Handle the import of tasks from markdown content with hierarchical structure.
@@ -2045,10 +1245,6 @@ def import_markdown() -> Union[str, Tuple[Dict[str, Any], int]]:
     - Indentation creates nested subtask relationships
 
     Supported Input Modes:
-        JSON API:
-            - parsed_tasks: Pre-processed task hierarchy
-            - content: Raw markdown text to parse
-
         HTML Form:
             - parsed_tasks: JSON string of task data (preview mode)
             - markdown_file: Uploaded .md or .txt file
@@ -2057,18 +1253,8 @@ def import_markdown() -> Union[str, Tuple[Dict[str, Any], int]]:
         default_priority (int): Priority level for imported tasks (default: 2)
 
     Returns:
-        JSON Response:
-            - success: Boolean indicating import status
-            - message: Human-readable result description
-            - imported_count: Number of tasks successfully imported
-
         HTML Response:
             - Redirects to index with flash message
-
-    HTTP Status Codes:
-        200: Success - tasks imported
-        400: Bad Request - invalid input or no tasks found
-        500: Internal Server Error
 
     Security Considerations:
         - File type validation for uploads (.md, .txt only)
@@ -2081,38 +1267,6 @@ def import_markdown() -> Union[str, Tuple[Dict[str, Any], int]]:
         - Atomic transaction with rollback on errors
     """
     try:
-        if wants_json():
-            # Handle JSON API requests
-            data = request.get_json()
-            if not data:
-                return jsonify({'error': 'No JSON data provided'}), 400
-
-            if 'parsed_tasks' in data:
-                # Import from pre-processed task data (preview mode)
-                parsed_tasks: List[Dict[str, Any]] = data['parsed_tasks']
-                default_priority: int = int(data.get('default_priority', 2))
-            elif 'content' in data:
-                # Parse raw markdown content directly
-                markdown_content: str = data['content']
-                default_priority: int = int(data.get('default_priority', 2))
-                parsed_tasks: List[Dict[str, Any]] = parse_markdown_content(markdown_content)
-            else:
-                return jsonify({'error': 'Either parsed_tasks or content is required'}), 400
-
-            # Validate that tasks were found/provided
-            if not parsed_tasks:
-                return jsonify({'error': 'No tasks found in the provided data'}), 400
-
-            # Import tasks into database
-            imported_count: int = import_tasks_from_data(parsed_tasks, default_priority)
-
-            return jsonify({
-                'success': True,
-                'message': f'Successfully imported {imported_count} tasks',
-                'imported_count': imported_count
-            }), 200
-
-        # Handle HTML form submissions
         if 'parsed_tasks' in request.form:
             # Import from preview data (user confirmed import)
             parsed_tasks: List[Dict[str, Any]] = json.loads(request.form.get('parsed_tasks'))
@@ -2154,8 +1308,6 @@ def import_markdown() -> Union[str, Tuple[Dict[str, Any], int]]:
     except Exception as e:
         # Ensure database consistency on errors
         db.session.rollback()
-        if wants_json():
-            return jsonify({'error': str(e)}), 500
         flash(f'Error importing markdown: {str(e)}', 'error')
         return redirect(url_for('main.index'))
 
@@ -2498,12 +1650,6 @@ def export_tasks() -> Union[str, Tuple[Dict[str, Any], int]]:
         - Summary statistics section
 
     Returns:
-        JSON Response:
-            - success: Boolean status
-            - content: Full markdown content as string
-            - filename: Suggested filename with timestamp
-            - content_type: MIME type for proper handling
-
         HTML Response:
             - File download with proper headers
             - Content-Disposition for automatic filename
@@ -2518,10 +1664,6 @@ def export_tasks() -> Union[str, Tuple[Dict[str, Any], int]]:
         - UTF-8 encoded markdown
         - Timestamped filename for version control
         - Re-importable structure using same parser
-
-    HTTP Status Codes:
-        200: Success - export generated
-        500: Internal Server Error
 
     Security:
         - Only exports tasks owned by authenticated user
@@ -2545,24 +1687,12 @@ def export_tasks() -> Union[str, Tuple[Dict[str, Any], int]]:
         timestamp: str = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename: str = f"my_tasks_{timestamp}.md"
 
-        if wants_json():
-            # Return content for API consumers
-            return jsonify({
-                'success': True,
-                'content': markdown_content,
-                'filename': filename,
-                'content_type': 'text/markdown'
-            }), 200
-
-        # Create file download response for HTML requests
         response = make_response(markdown_content)
         response.headers['Content-Type'] = 'text/markdown'
         response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
         return response
 
     except Exception as e:
-        if wants_json():
-            return jsonify({'error': str(e)}), 500
         flash(f'Error exporting tasks: {str(e)}', 'error')
         return redirect(url_for('main.index'))
 
@@ -2890,19 +2020,10 @@ def export_tasks_pdf() -> Union[str, Tuple[Dict[str, Any], int]]:
             - Direct PDF file download with proper headers
             - Content-Disposition for automatic filename
 
-        API Limitation:
-            - JSON API returns error (PDF not suitable for API responses)
-            - Recommends using markdown export instead
-
     Error Handling:
         - ImportError: Graceful fallback if ReportLab not installed
         - Redirects to markdown export as alternative
         - Flash messages for user feedback
-
-    HTTP Status Codes:
-        200: Success - PDF generated and downloaded
-        400: Bad Request - PDF not available via JSON API
-        Redirect: Error cases redirect to index or markdown export
 
     Security:
         - Requires authentication (@login_required)
@@ -2914,12 +2035,6 @@ def export_tasks_pdf() -> Union[str, Tuple[Dict[str, Any], int]]:
         - Consider pagination for very large exports
         - ReportLab handles page breaks automatically
     """
-    # PDF export not suitable for JSON API responses
-    if wants_json():
-        return jsonify({
-            'error': 'PDF export not available via API. Use markdown export instead.'
-        }), 400
-
     try:
         # Fetch and sort user's main tasks
         main_tasks = Task.query.filter_by(
