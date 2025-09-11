@@ -1,5 +1,6 @@
+import time
 from typing import Union, Tuple, Dict, Any, Optional, List
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, session, current_app
 from flask_login import current_user
 from werkzeug.security import check_password_hash, generate_password_hash
 from functools import wraps
@@ -236,75 +237,6 @@ def token_required(f):
 
     return decorated
 
-def serialize_task(task):
-    """
-        Convert a Task object to a dictionary representation for JSON serialization.
-
-        This function transforms a SQLAlchemy Task model instance into a Python dictionary
-        that can be safely serialized to JSON for API responses. It includes all relevant
-        task attributes and recursively serializes any nested subtasks.
-
-        Args:
-            task (Task): A SQLAlchemy Task model instance to serialize
-
-        Returns:
-            dict: A dictionary containing all task attributes and serialized subtasks
-
-        Dictionary structure:
-            {
-                'id': int,                                    # Unique task identifier
-                'title': str,                                 # Task title/description
-                'completed': bool,                            # Completion status
-                'priority': int,                              # Priority level (1-3)
-                'parent_task_id': int|None,                   # Parent task ID if subtask
-                'depth': int,                                 # Nesting level (0 for main tasks)
-                'user_id': int,                               # Owner's user ID
-                'is_subtask': bool,                           # Whether this is a subtask
-                'subtask_count': int,                         # Direct subtask count
-                'completed_subtask_count': int,               # Completed direct subtasks
-                'completion_percentage': float,               # Completion % of direct subtasks
-                'total_subtask_count_recursive': int,         # Total subtasks at all levels
-                'completed_subtask_count_recursive': int,     # Total completed at all levels
-                'completion_percentage_recursive': float,     # Overall completion percentage
-                'subtasks': [dict, ...]                       # Recursively serialized subtasks
-            }
-
-        Example:
-            >>> task = Task(id=1, title="Write documentation", completed=False)
-            >>> serialize_task(task)
-            {
-                'id': 1,
-                'title': 'Write documentation',
-                'completed': False,
-                'priority': 2,
-                'parent_task_id': None,
-                'depth': 0,
-                'user_id': 123,
-                'is_subtask': False,
-                'subtask_count': 3,
-                'completed_subtask_count': 1,
-                'completion_percentage': 33.33,
-                'subtasks': [...]
-            }
-        """
-    return {
-        'id': task.id,
-        'title': task.title,
-        'completed': task.completed,
-        'priority': task.priority,
-        'parent_task_id': task.parent_task_id,
-        'depth': task.depth,
-        'user_id': task.user_id,
-        'is_subtask': task.is_subtask,
-        'subtask_count': task.subtask_count,
-        'completed_subtask_count': task.completed_subtask_count,
-        'completion_percentage': task.completion_percentage,
-        'total_subtask_count_recursive': task.total_subtask_count_recursive,
-        'completed_subtask_count_recursive': task.completed_subtask_count_recursive,
-        'completion_percentage_recursive': task.completion_percentage_recursive,
-        'subtasks': [serialize_task(subtask) for subtask in task.subtasks] if hasattr(task, 'subtasks') else []
-    }
-
 
 def serialize_user(user):
     """
@@ -350,6 +282,165 @@ def serialize_user(user):
         'security_question': user.security_question
     }
 
+
+@api.route('/tasks', methods=['GET'])
+@token_required
+def get_tasks():
+    """
+    Retrieve main tasks only - fast and simple.
+
+    This endpoint now returns only main tasks without subtasks for optimal performance.
+    Subtasks are loaded on-demand via a separate endpoint when needed.
+
+    Performance benefits:
+    - Single simple query
+    - Minimal JSON payload
+    - Instant response time
+    - No N+1 query issues
+    """
+    try:
+        sort_by = request.args.get('sort_by', 'priority')
+        filter_by = request.args.get('filter_by', '')
+
+        from sqlalchemy import desc, asc
+        start_time = time.time()
+        # Simple query for main tasks only
+        query = Task.query.filter_by(
+            user_id=request.current_user.id,
+            parent_task_id=None
+        )
+
+        # Apply priority filter
+        if filter_by:
+            try:
+                priority_value = int(filter_by)
+                if 1 <= priority_value <= 3:
+                    query = query.filter_by(priority=priority_value)
+            except ValueError:
+                pass
+
+        # Database-level sorting
+        if sort_by == 'priority':
+            query = query.order_by(desc(Task.priority))
+        elif sort_by == 'title':
+            query = query.order_by(asc(Task.title))
+        elif sort_by == 'created_at':
+            query = query.order_by(desc(Task.created_at))
+        elif sort_by == 'updated_at':
+            query = query.order_by(desc(Task.updated_at))
+        else:
+            query = query.order_by(desc(Task.priority))
+            sort_by = 'priority'
+
+        query_time = time.time()
+        print(f"Query took: {query_time - start_time:.2f} seconds")
+
+        tasks = query.all()
+
+        fetch_time = time.time()
+        print(f"Fetch took: {fetch_time - query_time:.2f} seconds")
+
+
+        # Simple serialization without subtasks
+        serialized_tasks = [serialize_task(task) for task in tasks]
+        serialize_time = time.time()
+        print(f"Serialization took: {serialize_time - fetch_time:.2f} seconds")
+        print(f"Total tasks: {len(tasks)}")
+
+        return jsonify({
+            'success': True,
+            'tasks': serialized_tasks,
+            'total_count': len(tasks),
+            'sort_by': sort_by,
+            'filter_by': filter_by
+        }), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Error in get_tasks: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'An error occurred while retrieving tasks',
+            'tasks': [],
+            'total_count': 0
+        }), 500
+
+
+@api.route('/tasks/<int:task_id>/subtasks', methods=['GET'])
+@token_required
+def get_subtasks(task_id):
+    """
+    Get subtasks for a specific task - called on demand when user expands a task.
+
+    Args:
+        task_id: ID of the parent task
+
+    Returns:
+        List of direct subtasks for the specified task
+    """
+    try:
+        # Verify task belongs to user
+        parent_task = Task.query.filter_by(
+            id=task_id,
+            user_id=request.current_user.id
+        ).first()
+
+        if not parent_task:
+            return jsonify({
+                'success': False,
+                'error': 'Task not found',
+                'subtasks': []
+            }), 404
+
+        # Get direct subtasks only
+        subtasks = Task.query.filter_by(
+            parent_task_id=task_id,
+            user_id=request.current_user.id
+        ).order_by(Task.priority.desc()).all()
+
+        serialized_subtasks = [serialize_task(subtask) for subtask in subtasks]
+
+        return jsonify({
+            'success': True,
+            'subtasks': serialized_subtasks,
+            'parent_task_id': task_id,
+            'total_count': len(subtasks)
+        }), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Error in get_subtasks: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'An error occurred while retrieving subtasks',
+            'subtasks': []
+        }), 500
+
+
+def serialize_task(task):
+    """
+    Ultra-fast serialization that ONLY accesses basic database columns.
+    Avoids all calculated properties that might trigger expensive queries.
+
+    This will be blazingly fast because it only accesses direct table columns.
+    """
+    has_subtasks = Task.query.filter_by(
+        parent_task_id=task.id,
+        user_id=task.user_id
+    ).count() > 0
+    return {
+        'id': task.id,
+        'title': task.title,
+        'completed': task.completed,
+        'priority': task.priority,
+        'parent_task_id': task.parent_task_id,
+        'user_id': task.user_id,
+        'has_subtasks': has_subtasks,
+        'subtasks_loaded': False,
+        'depth': task.depth,
+        'is_subtask': task.is_subtask,
+        'subtask_count': task.subtask_count,
+        'completed_subtask_count': task.completed_subtask_count,
+        'completion_percentage': task.completion_percentage,
+    }
 
 @api.route('/auth/login', methods=['POST'])
 def login():
@@ -544,7 +635,7 @@ def register():
     if User.query.filter_by(email=email).first():
         return jsonify({'error': 'Email already exists'}), 409
 
-    hashed_password = generate_password_hash(password)
+    hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
     new_user = User(
         username=username,
         email=email,
@@ -562,125 +653,6 @@ def register():
         'token': token,
         'user': serialize_user(new_user)
     }), 201
-
-
-@api.route('/tasks', methods=['GET'])
-@token_required
-def get_tasks():
-    """
-        Display the main task management dashboard with filtering and sorting capabilities.
-
-        This is the primary endpoint for the task management application. It retrieves
-        and displays all main tasks (non-subtasks) for the authenticated user with
-        support for sorting and priority filtering. The endpoint serves API clients.
-
-        Authentication:
-            - Requires active user session (@login_required decorator)
-            - Only shows tasks belonging to the authenticated user
-
-        Query Parameters:
-            - sort_by (string, optional): Field to sort tasks by
-                * 'priority' (default): Sort by priority level (high to low)
-                * 'title': Sort by task title alphabetically
-                * Other task attributes can be specified
-
-            - filter_by (string, optional): Filter tasks by priority level
-                * '1': Show only low priority tasks
-                * '2': Show only medium priority tasks
-                * '3': Show only high priority tasks
-                * Empty/omitted: Show all tasks
-
-        Data Processing:
-            1. Extracts sort_by and filter_by parameters from request
-            2. Queries main tasks (parent_task_id=None) for current user
-            3. Applies priority filter if specified
-            4. Sorts tasks according to sort_by parameter
-            5. Eager loads subtasks to prevent N+1 query issues
-            6. Returns data in appropriate format (JSON)
-
-        Returns:
-            API Clients (200):
-                {
-                    "success": true,
-                    "tasks": [
-                        {
-                            "id": 1,
-                            "title": "Complete project",
-                            "completed": false,
-                            "priority": 3,
-                            "subtasks": [...],
-                            ...
-                        }
-                    ],
-                    "total_count": 5,
-                    "sort_by": "priority",
-                    "filter_by": "3",
-                    "max_depth": 5
-                }
-
-        Task Structure:
-            - Only main tasks (depth 0) are returned at the top level
-            - Each task includes all subtasks recursively serialized
-            - Subtasks are eager-loaded to optimize database performance
-            - Tasks include completion statistics and progress indicators
-
-        Sorting Options:
-            - priority (default): High to low priority (3, 2, 1)
-            - title: Alphabetical by task title
-            - Any other task attribute can be specified
-
-        Filtering Options:
-            - Priority-based filtering (1=Low, 2=Medium, 3=High)
-            - Can be combined with any sort option
-            - Empty filter shows all tasks
-
-        Performance Considerations:
-            - Uses eager loading for subtasks to prevent N+1 queries
-            - Filters at database level for efficiency
-            - Sorting performed in Python for flexibility
-
-        Error Conditions:
-            - 401: User not authenticated (handled by @login_required)
-            - 500: Database error during task retrieval
-
-        Example Usage:
-            # Get all tasks sorted by priority
-            GET / -> Returns all tasks, high priority first
-
-            # Get only high priority tasks sorted by title
-            GET /?filter_by=3&sort_by=title
-
-            # API request for filtered tasks
-            GET /?format=json&filter_by=2
-            Headers: Accept: application/json
-        """
-    sort_by = request.args.get('sort_by', 'priority')
-    filter_by = request.args.get('filter_by', '')
-
-    # Build query
-    query = Task.query.filter_by(user_id=request.current_user.id, parent_task_id=None)
-    if filter_by:
-        query = query.filter_by(priority=int(filter_by))
-
-    tasks = query.all()
-
-    # Apply sorting
-    if sort_by == 'priority':
-        tasks.sort(key=lambda task: task.priority, reverse=True)
-    else:
-        tasks.sort(key=lambda task: getattr(task, sort_by, ''))
-
-    for task in tasks:
-        task.subtasks.all()
-
-    return jsonify({
-        'success': True,
-        'tasks': [serialize_task(task) for task in tasks],
-        'total_count': len(tasks),
-        'sort_by': sort_by,
-        'filter_by': filter_by,
-        'max_depth': MAX_NESTING_DEPTH
-    }), 200
 
 
 @api.route('/tasks', methods=['POST'])
@@ -1365,75 +1337,82 @@ def forgot_password():
         error_msg = 'Username not found'
         return jsonify({'error': error_msg}), 404
 
-@api.route('/security_answer', methods=['GET', 'POST'])
-def security_answer() -> Union[str, Tuple[Dict[str, Any], int]]:
+
+@api.route('/users/<username>/security_question', methods=['GET'])
+def get_security_question(username: str) -> Tuple[Dict[str, Any], int]:
     """
-    Handle the security question verification process during password reset.
+    Retrieve security question for a specific user.
 
-    This endpoint manages the second step of the password recovery flow where users
-    must answer their security question correctly to proceed to password reset.
-
-    Session Requirements:
-        username (str): User's username from the previous step
-        security_question (str): The security question text retrieved from database
+    Args:
+        username: The username to get security question for
 
     Returns:
-        GET Request:
-            - JSON: Security question data with 200 status
-
-        POST Request:
-            - JSON: Success/error response with appropriate status codes
-
-    HTTP Status Codes:
-        200: Success - security answer verified
-        400: Bad Request - missing required data
-        401: Unauthorized - incorrect security answer
-        404: Not Found - user not found
-        500: Internal Server Error
-
-    Security Features:
-        - Session-based state management
-        - Direct string comparison for security answers (consider case sensitivity)
-        - Automatic session cleanup on errors
+        JSON response with security question or error
     """
-    username: Optional[str] = session.get('username')
-    security_question: Optional[str] = session.get('security_question')
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
 
-    if request.method == 'GET':
-        # Handle JSON API requests for security question retrieval
-        if not username or not security_question:
-            return jsonify({'error': 'Session expired. Start password reset again.'}), 400
-        return jsonify({
-            'security_question': security_question,
-            'username': username
-        }), 200
+    if not user.security_question:
+        return jsonify({'error': 'No security question set for this user'}), 404
 
+    return jsonify({
+        'security_question': user.security_question,
+        'username': username
+    }), 200
+
+
+@api.route('/security_answer/verify', methods=['POST'])
+def verify_security_answer() -> Tuple[Dict[str, Any], int]:
+    """
+    Verify security answer for password reset flow.
+
+    Expected JSON payload:
+        {
+            "username": "string",
+            "security_answer": "string"
+        }
+
+    Returns:
+        JSON response indicating success or failure
+    """
     data = request.get_json()
     if not data:
         return jsonify({'error': 'No JSON data provided'}), 400
-    security_answer_input: Optional[str] = data.get('security_answer')
-    # Allow username override from request for API flexibility
-    username = data.get('username', username)
+
+    username = data.get('username')
+    security_answer_input = data.get('security_answer')
+
+    if not username:
+        return jsonify({'error': 'Username is required'}), 400
 
     if not security_answer_input:
-        error_msg = 'Security answer is required'
-        return jsonify({'error': error_msg}), 400
+        return jsonify({'error': 'Security answer is required'}), 400
 
     user = User.query.filter_by(username=username).first()
     if not user:
-        error_msg = 'User not found'
-        return jsonify({'error': error_msg}), 404
+        return jsonify({'error': 'User not found'}), 404
 
-    if user.security_answer == security_answer_input:
+    if not user.security_answer:
+        return jsonify({'error': 'No security answer set for this user'}), 404
+
+    # Compare security answers (case-insensitive, trimmed)
+    stored_answer = user.security_answer.strip().lower()
+    provided_answer = security_answer_input.strip().lower()
+
+    if stored_answer == provided_answer:
+        # Store verification in session for next step
+        session['username'] = username
+        session['security_verified'] = True
+
         return jsonify({
             'success': True,
             'message': 'Security answer verified',
             'next_step': 'reset_password'
         }), 200
     else:
-        # Incorrect answer
-        error_msg = 'Incorrect security answer'
-        return jsonify({'error': error_msg}), 401
+        return jsonify({'error': 'Incorrect security answer'}), 401
+
 
 @api.route('/reset_password', methods=['GET', 'POST'])
 def reset_password() -> Union[str, Tuple[Dict[str, Any], int]]:
