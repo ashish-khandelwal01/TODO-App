@@ -1631,6 +1631,109 @@ def import_tasks_from_data(parsed_tasks: List[Dict[str, Any]], default_priority:
     db.session.commit()
     return imported_count
 
+def import_tasks_from_data_api(parsed_tasks: List[Dict[str, Any]], default_priority: int) -> int:
+    """
+    Import hierarchical task data into the database with proper relationships.
+
+    This function recursively processes the parsed task structure and creates
+    corresponding database records while maintaining parent-child relationships
+    and preventing excessive nesting.
+
+    Args:
+        parsed_tasks (List[Dict[str, Any]]): Structured task data from parser
+        default_priority (int): Priority level to assign to all imported tasks
+
+    Returns:
+        int: Total number of tasks successfully imported (including subtasks)
+
+    Database Operations:
+        - Creates Task objects with proper foreign key relationships
+        - Uses flush() to get IDs before committing for parent references
+        - Maintains depth tracking for UI hierarchy rendering
+        - Single commit at end for atomic operation
+
+    Nesting Protection:
+        - Enforces MAX_NESTING_DEPTH limit to prevent stack overflow
+        - Skips deeply nested tasks rather than failing entire import
+
+    Task Attributes Set:
+        - title: From parsed task data
+        - completed: From parsed completion status
+        - priority: Uses provided default_priority
+        - parent_task_id: Set for subtasks to maintain hierarchy
+        - user_id: Assigned to current authenticated user
+        - depth: Calculated from nesting level for UI rendering
+
+    Recursive Processing:
+        - Main tasks created first with parent_task_id = None
+        - Subtasks reference parent's ID after database flush
+        - Depth increments with each nesting level
+        - Counter tracks total across all recursion levels
+    """
+    imported_count = 0
+
+    def create_task_recursive_api(task_data: Dict[str, Any],
+                              parent_id: Optional[int] = None,
+                              current_depth: int = 0) -> Optional[Task]:
+        """
+        Recursively create tasks and their subtasks in the database.
+
+        This nested function handles the recursive creation of task hierarchies
+        while maintaining proper parent-child relationships and depth tracking.
+
+        Args:
+            task_data (Dict[str, Any]): Individual task data to create
+            parent_id (Optional[int]): ID of parent task (None for main tasks)
+            current_depth (int): Current nesting level (0-based)
+
+        Returns:
+            Optional[Task]: Created task object, or None if depth limit exceeded
+
+        Depth Limit Protection:
+            - Prevents creation beyond MAX_NESTING_DEPTH
+            - Returns None rather than raising exception
+            - Allows partial import to continue
+
+        Database Flush Strategy:
+            - Uses flush() to get primary key without full commit
+            - Enables parent_id assignment for subsequent subtasks
+            - Maintains transaction integrity until final commit
+        """
+        nonlocal imported_count
+
+        # Prevent excessive nesting that could cause performance issues
+        if current_depth >= MAX_NESTING_DEPTH:
+            return None
+
+        # Create task object with provided data
+        task = Task(
+            title=task_data['title'],
+            completed=task_data['completed'],
+            priority=default_priority,
+            parent_task_id=parent_id,
+            user_id=request.current_user.id,
+            depth=current_depth
+        )
+
+        # Add to session and flush to get primary key
+        db.session.add(task)
+        db.session.flush()  # Gets ID without committing transaction
+        imported_count += 1
+
+        # Recursively create subtasks with current task as parent
+        for subtask_data in task_data.get('subtasks', []):
+            create_task_recursive_api(subtask_data, task.id, current_depth + 1)
+
+        return task
+
+    # Process all main tasks recursively
+    for task_data in parsed_tasks:
+        create_task_recursive_api(task_data)
+
+    # Commit all changes atomically
+    db.session.commit()
+    return imported_count
+
 
 @main.route('/export_tasks')
 @login_required

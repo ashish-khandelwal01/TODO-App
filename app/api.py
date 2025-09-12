@@ -10,7 +10,8 @@ import os
 
 from app import db
 from app.models import User, Task
-from app.routes import import_tasks_from_data, parse_markdown_content, generate_markdown_export
+from app.routes import import_tasks_from_data, parse_markdown_content, generate_markdown_export, \
+    import_tasks_from_data_api
 
 # Create API blueprint
 api = Blueprint('api', __name__, url_prefix='/api/v1')
@@ -1545,7 +1546,7 @@ def import_markdown() -> Union[str, Tuple[Dict[str, Any], int]]:
             return jsonify({'error': 'No tasks found in the provided data'}), 400
 
         # Import tasks into database
-        imported_count: int = import_tasks_from_data(parsed_tasks, default_priority)
+        imported_count: int = import_tasks_from_data_api(parsed_tasks, default_priority)
 
         return jsonify({
             'success': True,
