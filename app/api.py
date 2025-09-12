@@ -10,7 +10,8 @@ import os
 
 from app import db
 from app.models import User, Task
-from app.routes import import_tasks_from_data, parse_markdown_content, generate_markdown_export
+from app.routes import import_tasks_from_data, parse_markdown_content, generate_markdown_export, \
+    import_tasks_from_data_api
 
 # Create API blueprint
 api = Blueprint('api', __name__, url_prefix='/api/v1')
@@ -332,20 +333,9 @@ def get_tasks():
             query = query.order_by(desc(Task.priority))
             sort_by = 'priority'
 
-        query_time = time.time()
-        print(f"Query took: {query_time - start_time:.2f} seconds")
-
         tasks = query.all()
-
-        fetch_time = time.time()
-        print(f"Fetch took: {fetch_time - query_time:.2f} seconds")
-
-
         # Simple serialization without subtasks
         serialized_tasks = [serialize_task(task) for task in tasks]
-        serialize_time = time.time()
-        print(f"Serialization took: {serialize_time - fetch_time:.2f} seconds")
-        print(f"Total tasks: {len(tasks)}")
 
         return jsonify({
             'success': True,
@@ -1540,7 +1530,7 @@ def import_markdown() -> Union[str, Tuple[Dict[str, Any], int]]:
         data = request.get_json()
         if not data:
             return jsonify({'error': 'No JSON data provided'}), 400
-
+        print("i am here")
         if 'parsed_tasks' in data:
             parsed_tasks: List[Dict[str, Any]] = data['parsed_tasks']
             default_priority: int = int(data.get('default_priority', 2))
@@ -1556,7 +1546,7 @@ def import_markdown() -> Union[str, Tuple[Dict[str, Any], int]]:
             return jsonify({'error': 'No tasks found in the provided data'}), 400
 
         # Import tasks into database
-        imported_count: int = import_tasks_from_data(parsed_tasks, default_priority)
+        imported_count: int = import_tasks_from_data_api(parsed_tasks, default_priority)
 
         return jsonify({
             'success': True,
@@ -1613,7 +1603,7 @@ def export_tasks() -> Union[str, Tuple[Dict[str, Any], int]]:
     """
     try:
         main_tasks = Task.query.filter_by(
-            user_id=current_user.id,
+            user_id=request.current_user.id,
             parent_task_id=None
         ).all()
 
