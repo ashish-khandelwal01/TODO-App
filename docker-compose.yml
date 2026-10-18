@@ -6,7 +6,7 @@ services:
     container_name: todo-homelab
     restart: unless-stopped
     ports:
-      - "127.0.0.1:5051:5000"
+      - "5051:5000"
     environment:
       DATABASE_URL: ${DATABASE_URL}
       SECRET_KEY: ${SECRET_KEY}
